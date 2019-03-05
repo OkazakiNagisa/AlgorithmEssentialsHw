@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wk1ex1", "wk1ex1\wk1ex1.vcxproj", "{676A5DA6-F2F4-485B-B9D4-9C1F4058A359}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wk1ex1", "..\wk1ex1\wk1ex1.vcxproj", "{676A5DA6-F2F4-485B-B9D4-9C1F4058A359}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wk1ex2", "wk1ex2\wk1ex2.vcxproj", "{4EE4B92E-D77B-4397-B2AB-005AE57BC18C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wk1ex2", "..\wk1ex2\wk1ex2.vcxproj", "{4EE4B92E-D77B-4397-B2AB-005AE57BC18C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
