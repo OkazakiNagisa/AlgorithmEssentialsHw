@@ -1,11 +1,88 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title></title>
 	<meta charset="utf-8" />
 </head>
 <body>
+	<input id="fileInput" type="file" onchange="processFiles()" />
+	<br>
+	<canvas id="myCanvas" width="500" height="300" style="border:1px solid #c3c3c3">your browser does not support the canvas tag </canvas>
 
+	<script>
+		function processFiles() {
+			var file = document.getElementById("fileInput").files[0];
+			var reader = new FileReader();
+			reader.readAsText(file);
+			reader.onload = function (e) {
+				var str = this.result;//读取文本
+				var number = new Array();
+				number = digitalExtraction(str, number);//提取数字并存入数组
+				draw(number);//画图
+			}
+		}
+		//提取数字，并存入数组
+		function digitalExtraction(str, number) {
+			var heap = str.replace(/[^0-9.L]/ig, "A");
+
+			var numcharacter = "";//存储数字字符
+			var number = new Array();//提取数字数组
+			var i = 0;
+			var flag = 0;//heap字符串当前标记
+			var n = 0;//标识数字与字符转换位置
+			var character = heap[flag];//获取字符串的一个字符
+			// document.write(heap);
+			while (character != null) {
+				if (character == "L") {
+					number[i++] = -1;
+					flag += 2;
+					character = heap[flag];
+				}
+				if (character != "A") {
+					n = 1;
+					numcharacter += character;
+				}
+				else {
+					if (n) {
+						number[i++] = parseFloat(numcharacter);
+						numcharacter = "";
+						n = 0;
+					}
+				}
+				character = heap[++flag];
+			}
+
+			return number;
+		}
+
+		function draw(number) {
+			var canvas = document.getElementById('myCanvas');
+
+			var cxt = canvas.getContext('2d');
+			var n = number.length;
+			number[n] = -1;
+			var n = number.length;
+
+			var flag = 0;
+			var x = new Array();
+			var y = new Array();
+			var j = 0;
+			for (var i = 1, j = 0; i < n; i++) {
+				if (number[i] != -1) {
+					x[j] = number[i] * 10;
+					y[j] = number[++i] * 10;
+					j++;
+				} else {
+					cxt.moveTo(x[0], y[0]);
+					for (var k = 1; k < j; k++) {
+						cxt.lineTo(x[k], y[k]);
+					}
+					cxt.stroke();
+					j = 0;
+				}
+			}
+		}
+	</script>
 </body>
 </html>
