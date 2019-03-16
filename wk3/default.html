@@ -1,11 +1,180 @@
 ﻿<!DOCTYPE html>
 <html>
+
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<title>第三周</title>
 	<meta charset="utf-8" />
-</head>
-<body>
 
+	<style type="text/css">
+		button {
+			background-color: white;
+			border: none;
+			color: black;
+			padding: 1px 1px;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			font-size: 16px;
+			margin: 4px 2px;
+			-webkit-transition-duration: 0.4s;
+			/* Safari */
+			transition-duration: 0.4s;
+			cursor: pointer;
+			border: 2px solid #6495ed;
+			width: 100px;
+		}
+
+		button:hover {
+			background-color: #6495ed;
+			color: white;
+		}
+	</style>
+</head>
+
+<body>
+	<div>
+		<input id="fileInput" type="file" onchange="processFiles()" />
+	</div>
+	<div>
+		<button id="ResetTr">重置</button>
+	</div>
+	<div>
+		<button id="LeftTaperTr">左斜变换</button>
+		<button id="ShoulderTr">耸肩变换</button>
+		<button id="ScaleTr">比例变换</button>
+		<button id="SpinTr">旋转变换</button>
+		<button id="MirrorTr">对称变换</button>
+		<button id="MoveTr">平移变换</button>
+	</div>
+	<div id="mydiv" style="width:90%; height: 80%; background: white; position: absolute;">
+		<canvas id="myCanvas1" style="width:45%; height: 90%; border:1px dashed black;">
+			Canvas Err.
+		</canvas>
+		<canvas id="myCanvas2" style="width:45%; height: 90%; border:1px dashed black;">
+		</canvas>
+	</div>
+
+	<script>
+		var ec1, ec2;
+		var paths;
+
+		main();
+
+		function main() {
+			ec1 = document.getElementById("myCanvas1");
+			ec2 = document.getElementById("myCanvas2");
+
+			ec1.height = ec1.clientHeight;
+			ec1.width = ec1.clientWidth;
+			ec2.height = ec2.clientHeight;
+			ec2.width = ec2.clientWidth;
+
+			drawAxis(ec1);
+			drawAxis(ec2);
+
+			document.getElementById('LeftTaperTr').onclick = (e) => drawFilesTr(1, 0.5, 0.5, 1, 0, 0);
+			document.getElementById('ShoulderTr').onclick = (e) => drawFilesTr(1, 0, 0.5, 1, 0, 0);
+			document.getElementById('ScaleTr').onclick = (e) => drawFilesTr(2, 0, 0, 2, 0, 0);
+			document.getElementById('SpinTr').onclick = (e) => drawFilesTr(1, 0.5, -0.5, 1, 30, 10);
+			document.getElementById('MirrorTr').onclick = (e) => drawFilesTr(-1, 0, 0, 1, ec2.width, 0);
+			document.getElementById('MoveTr').onclick = (e) => drawFilesTr(1, 0, 0, 1, 30, 30);
+			document.getElementById('ResetTr').onclick = (e) => drawFilesTr(1, 0, 0, 1, 0, 0);
+		}
+
+		function drawAxis(ec) {
+			var ctx = ec.getContext("2d");
+			var x = ec.width;
+			var y = ec.height;
+
+			ctx.strokeStyle = '#F0F8FF';
+			for (let index = 0; index < x; index += 10) {
+				ctx.beginPath();
+				ctx.moveTo(index, 0);
+				ctx.lineTo(index, y);
+				ctx.stroke();
+			}
+			for (let index = 0; index < y; index += 10) {
+				ctx.beginPath();
+				ctx.moveTo(0, index);
+				ctx.lineTo(x, index);
+				ctx.stroke();
+			}
+		}
+
+		function drawFilesTr(a, b, c, d, e, f) {
+			ec2.getContext("2d").setTransform(1, 0, 0, 1, 0, 0);
+			ec2.getContext("2d").clearRect(0, 0, ec2.width, ec2.height);
+			drawAxis(ec2);
+			ec2.getContext("2d").setTransform(a, b, c, d, e, f);
+			drawFiles(ec2);
+		}
+
+		function drawFiles(ec) {
+			var ctx = ec.getContext("2d");
+			ctx.strokeStyle = '#000000';
+
+			for (let index1 = 0; index1 < paths.length; index1++) {
+				const element1 = paths[index1];
+				ctx.beginPath();
+				ctx.moveTo(element1[0] * 10, element1[1] * 10);
+				for (let index2 = 2; index2 < element1.length; index2 += 2) {
+					ctx.lineTo(element1[index2] * 10, element1[index2 + 1] * 10);
+				}
+				ctx.stroke();
+			}
+		}
+
+		function processFiles() {
+			var file = document.getElementById("fileInput").files[0];
+			var reader = new FileReader();
+			reader.readAsText(file);
+			reader.onload = function(e) {
+				var str = reader.result.replace(/^L[0-9]/gim, 'BEGIN').replace(/end/gim, 'END');
+				var i = -1;
+				paths = new Array();
+				var pathsLast = -1;
+				var pathsLastLast = -1;
+				var flagInBlock = false;
+				var flagInNumStr = false;
+				var numString = '';
+
+				while (str[++i] != null) {
+					if (str.substr(i, 5) == 'BEGIN') {
+						flagInBlock = true;
+						i += 6;
+						paths[++pathsLast] = new Array();
+						continue;
+					}
+					if (str.substr(i, 3) == 'END') {
+						flagInBlock = false;
+						i += 4;
+						pathsLastLast = -1;
+						continue;
+					}
+					if (
+						flagInBlock &&
+						(
+							(str[i] >= '0' && str[i] <= '9')
+							||
+							str[i] == '.'
+						)
+					) {
+						flagInNumStr = true;
+						numString += str[i];
+					}
+					else if (flagInNumStr) {
+						flagInNumStr = false;
+						paths[pathsLast][++pathsLastLast] = parseFloat(numString);
+						numString = '';
+					}
+				}
+
+				drawFiles(ec1);
+				drawFiles(ec2);
+			}
+		}
+	</script>
 </body>
+
 </html>
