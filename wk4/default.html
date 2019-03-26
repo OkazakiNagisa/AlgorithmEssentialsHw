@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>地图投影</title>
+    <style type="text/css">
+        canvas {
+            padding-left: 50px;
+            padding-right: 50px;
+            padding-top: 50px;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            width: 800px;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+
+        <div>
+            <p>请选择投影文件</p>
+            <input type="file" id="input">
+            <input type="button" value="北京54" onclick="BJ()">
+            <input type="button" value="兰伯特" onclick="Lanbert()">
+            <input type="button" value="墨卡托" onclick="Mercator()">
+
+            <p>请选择世界地图文件</p>
+            <input type="file" id="input1">
+            <input type="button" value="WGS84" onclick="WGS84()">
+            <input type="button" value="墨卡托" onclick="Mercator2()">
+            <input type="button" value="大圆航线" onclick="Circle()">
+        </div>
+        <div>
+            <canvas id="canv" width="1000px" height="600px"></canvas>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        function Point(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+        var A = new Array();
+        var N = 0;
+        /*北京54参数*/
+        var a = 6378245;//长半轴
+        var b = 6356863.01877;//短半轴
+        var e1 = 0.006693421622966; //第一偏心率的平方
+        var e2 = 0.006738525414684;//第二偏心率的平方
+        /*兰伯特参数*/
+        var L0 = 105 * Math.PI / 180;//原点经度
+        var B0 = 0;//原点纬度
+        var B1 = 20 * Math.PI / 180;//第一标准纬线
+        var B2 = 40 * Math.PI / 180;//第二标准纬线
+        /*WGS84参数*/
+        var a1 = 6378137;//长半轴
+        var b1 = 6356752.3142;//短半轴
+        var e01 = 0.00669437999013;//第一偏心率平方
+        var e11 = 0.006739496742227;//第二偏心率平方
+        function BJ() {
+            var inputfile = document.getElementById("input").files[0];
+            var reader = new FileReader();
+            reader.readAsText(inputfile);
+            reader.onload = function (e) {
+                var text = reader.result.split("\r\n");
+                A[N] = new Array();
+                var l = text.length;
+                var judge = 0;
+                for (i = 1; i < l - 1; i++) {
+                    if (text[i] != "END") {
+                        if (text[i].length != 2 && text[i].length != 3 && text[i].length != 1) {
+                            var x;
+                            var y;
+                            x = text[i].split(",")[0];
+                            y = text[i].split(",")[1];
+                            A[N][judge] = new Point(x, y);
+                            judge = judge + 1;
+                        }
+                    }
+                    else {
+                        judge = 0;
+                        N = N + 1;
+                        A[N] = new Array();
+                    }
+                }
+                var canvas = document.getElementById("canv");
+                var cxt = canvas.getContext("2d");
+                cxt.clearRect(0, 0, 5000, 5000);
+                grid1();
+                cxt.beginPath();
+                cxt.lineWidth = 2;
+                for (i = 0; i < N + 1; i++) {
+                    var l = A[i].length;
+                    for (j = 0; j < l - 1; j++) {
+                        cxt.moveTo((A[i][j].x) * 10 - 500, 600 - (A[i][j].y) * 10);
+                        cxt.lineTo((A[i][j + 1].x) * 10 - 500, 600 - (A[i][j + 1].y) * 10);
+                    }
+                }
+                cxt.stroke();
+            }
+        }
+        function grid1() {//北京54格网
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.beginPath()
+            cxt.lineWidth = 2;
+            var x = 100;
+            var y = 0;
+            for (i = 0; i < 17; i++) {
+                cxt.moveTo(100, y);
+                cxt.lineTo(900, y);
+                y = y + 50;
+            }
+            for (j = 0; j < 17; j++) {
+                cxt.moveTo(x, 0);
+                cxt.lineTo(x, 600);
+                x = x + 50;
+            }
+            cxt.stroke();
+        }
+        function grid2() {//墨卡托格网
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.beginPath()
+            cxt.lineWidth = 2;
+            var x = 100;
+            var y = 0;
+            for (i = 0; i < 17; i++) {
+                var z = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * ((y * Math.PI / 180) - 0);
+                cxt.moveTo(100, (z * 0.00001 + 50));
+                cxt.lineTo(900, (z * 0.00001 + 50));
+                y = y + 50;
+            }
+            for (j = 0; j < 17; j++) {
+                cxt.moveTo(x, 0);
+                cxt.lineTo(x, 600);
+                x = x + 50;
+            }
+            cxt.stroke();
+        }
+        function grid3() {//兰伯特格网
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.beginPath()
+            cxt.lineWidth = 2;
+            var x1 = 500;
+            var y1 = -800;
+            var x2 = 500;
+            var y2 = -800;
+            for (i = 0; i < 8; i++) {
+                x1 = x1 - 1600 * Math.sin(Math.PI * 5 * i / 180);
+                y1 = y1 + 1600 * Math.cos(Math.PI * 5 * i / 180)
+                cxt.moveTo(500, -800);
+                cxt.lineTo(x1, y1);
+            }
+            for (j = 0; j < 8; j++) {
+                x2 = x2 + 1600 * Math.sin(Math.PI * 5 * j / 180);
+                y2 = y2 + 1600 * Math.cos(Math.PI * 5 * j / 180)
+                cxt.moveTo(500, -800);
+                cxt.lineTo(x2, y2);
+            }
+            cxt.arc(500, -800, 1000, (Math.PI * 43 / 36), (Math.PI * 61 / 36));
+            cxt.stroke();
+        }
+        function grid4() {//WGS84的格网
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.beginPath()
+            cxt.lineWidth = 1;
+            var x = 40;
+            var y = 30;
+            for (i = 0; i < 35; i++) {
+                cxt.moveTo(40, y);
+                cxt.lineTo(760, y);
+                y = y + 10;
+            }
+            for (j = 0; j < 73; j++) {
+                cxt.moveTo(x, 30);
+                cxt.lineTo(x, 370);
+                x = x + 10;
+            }
+            cxt.stroke();
+        }
+        function grid5() {//绘制世界版图墨卡托投影格网，间距为5度
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.beginPath()
+            cxt.lineWidth = 2;
+            var x = 100;
+            var z = 0;
+            var q = 0;
+            var y1 = 210;
+            var y2 = 210;
+            for (i = 1; i < 17; i++) {
+                z = z + 5;
+                y1 = y1 - 30 * Math.sin(z * Math.PI / 180);
+                cxt.moveTo(100, y1);
+                cxt.lineTo(500, y1);
+            }
+            for (k = 0; k < 13; k++) {
+                q = q + 5;
+                y2 = y2 + 30 * Math.sin(q * Math.PI / 180);
+                cxt.moveTo(100, y2);
+                cxt.lineTo(500, y2);
+            }
+            for (j = 0; j < 81; j++) {
+                cxt.moveTo(x, 0);
+                cxt.lineTo(x, y2);
+                x = x + 5;
+            }
+            cxt.stroke();
+        }
+        function Lanbert() {
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.clearRect(0, 0, 5000, 5000);
+            cxt.beginPath();
+            cxt.lineWidth = 2;
+            var mb1 = Math.cos(B1) / Math.sqrt(1 - e1 * Math.pow(Math.sin(B1), 2));
+            var mb2 = Math.cos(B2) / Math.sqrt(1 - e1 * Math.pow(Math.sin(B2), 2));
+            var tb1 = Math.tan(Math.PI / 4 - B1 / 2) / Math.pow(((1 - Math.sqrt(e1) * Math.sin(B1)) / (1 + Math.sqrt(e1) * Math.sin(B1))), (Math.sqrt(e1) / 2));
+            var tb2 = Math.tan(Math.PI / 4 - B2 / 2) / Math.pow(((1 - Math.sqrt(e1) * Math.sin(B2)) / (1 + Math.sqrt(e1) * Math.sin(B1))), (Math.sqrt(e1) / 2));
+            var n = Math.log(mb1 / mb2, Math.E) / Math.log(tb1 / tb2, Math.E);
+            var f = mb1 / (n * Math.pow(tb1, n));
+            for (i = 0; i < N + 1; i++) {
+                for (j = 0; j < A[i].length - 1; j++) {
+                    var x1 = A[i][j].x;
+                    var y1 = A[i][j].y;
+                    var x2 = A[i][j + 1].x;
+                    var y2 = A[i][j + 1].y;
+                    var r1 = a * f * Math.pow(Math.tan(Math.PI / 4 - (y1 * Math.PI / 180) / 2) / Math.pow(((1 - Math.sqrt(e1) * Math.sin(y1 * Math.PI / 180)) / (1 + Math.sqrt(e1) * Math.sin(y1 * Math.PI / 180))), (Math.sqrt(e1) / 2)), n);
+                    var t1 = n * (x1 * Math.PI / 180 - L0);
+                    var r2 = a * f * Math.pow(Math.tan(Math.PI / 4 - (y2 * Math.PI / 180) / 2) / Math.pow(((1 - Math.sqrt(e1) * Math.sin(y2 * Math.PI / 180)) / (1 + Math.sqrt(e1) * Math.sin(y2 * Math.PI / 180))), (Math.sqrt(e1) / 2)), n);
+                    var t2 = n * (x2 * Math.PI / 180 - L0);
+                    var xx1 = a * f - r1 * Math.cos(t1);
+                    var yy1 = r1 * Math.sin(t1);
+                    var xx2 = a * f - r2 * Math.cos(t2);
+                    var yy2 = r2 * Math.sin(t2);
+                    cxt.moveTo(yy1 * 0.0001 + 500, 640 - xx1 * 0.0001);
+                    cxt.lineTo(yy2 * 0.0001 + 500, 640 - xx2 * 0.0001);
+                }
+            }
+            cxt.stroke();
+        }
+        function Mercator() {
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.clearRect(0, 0, 5000, 5000);
+            cxt.beginPath();
+            cxt.lineWidth = 2;
+            grid2();
+            var e2 = Math.sqrt(a * a - b * b) / b;
+            var e1 = Math.sqrt(a * a - b * b) / a;
+            for (i = 0; i < N + 1; i++) {
+                for (j = 0; j < A[i].length - 1; j++) {
+                    var x1 = A[i][j].x;
+                    var y1 = A[i][j].y;
+                    var x2 = A[i][j + 1].x;
+                    var y2 = A[i][j + 1].y;
+                    var xx1 = ((Math.pow(a, 2) / b) / Math.sqrt(1 + e2)) * Math.log((Math.tan(Math.PI / 4 + (y1 * Math.PI / 180) / 2)) * Math.pow(((1 - Math.sqrt(e1) * Math.sin(y1 * Math.PI / 180)) / (1 + Math.sqrt(e1) * Math.sin(y1 * Math.PI / 180))), (Math.sqrt(e1) / 2)), Math.E);
+                    var yy1 = ((Math.pow(a, 2) / b) / Math.sqrt(1 + e2)) * ((x1 * Math.PI / 180) - L0);
+                    var xx2 = ((Math.pow(a, 2) / b) / Math.sqrt(1 + e2)) * Math.log((Math.tan(Math.PI / 4 + (y2 * Math.PI / 180) / 2)) * Math.pow(((1 - Math.sqrt(e1) * Math.sin(y2 * Math.PI / 180)) / (1 + Math.sqrt(e1) * Math.sin(y2 * Math.PI / 180))), (Math.sqrt(e1) / 2)), Math.E);
+                    var yy2 = ((Math.pow(a, 2) / b) / Math.sqrt(1 + e2)) * ((x1 * Math.PI / 180) - L0);
+                    cxt.moveTo(yy1 * 0.0001 + 500, 720 - xx1 * 0.0001);
+                    cxt.lineTo(yy2 * 0.0001 + 500, 720 - xx2 * 0.0001);
+                }
+            }
+            cxt.stroke();
+        }
+        var W = 0;
+        var WA = new Array();
+        function WGS84() {//WGS84
+            var inputfile = document.getElementById("input1").files[0];
+            var reader = new FileReader();
+            reader.readAsText(inputfile);
+            reader.onload = function (e) {
+                var text = reader.result.split("\r\n");
+                WA[W] = new Array();
+                var l = text.length;
+                var judge = 0;
+                for (i = 1; i < l - 1; i++) {
+                    if (text[i] != "END") {
+                        if (text[i].length != 2 && text[i].length != 3 && text[i].length != 1 && text[i].length != 4) {
+                            var x;
+                            var y;
+                            x = text[i].split(",")[0];
+                            y = text[i].split(",")[1];
+                            WA[W][judge] = new Point(x, y);
+                            judge++;
+                        }
+                    }
+                    else {
+                        judge = 0;
+                        W = W + 1;
+                        WA[W] = new Array();
+                    }
+                }
+                var canvas = document.getElementById("canv");
+                var cxt = canvas.getContext("2d");
+                cxt.clearRect(0, 0, 5000, 5000);
+                grid4();
+                cxt.beginPath();
+                cxt.lineWidth = 1;
+                for (i = 0; i < W + 1; i++) {
+                    for (j = 0; j < WA[i].length - 1; j++) {
+                        cxt.moveTo((WA[i][j].x * 2) + 400, 200 - (WA[i][j].y) * 2);
+                        cxt.lineTo((WA[i][j + 1].x * 2) + 400, 200 - (WA[i][j + 1].y) * 2);
+                    }
+                }
+                cxt.stroke();
+            }
+        }
+        function Mercator2() {
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.clearRect(0, 0, 5000, 5000);
+            grid5();
+            cxt.beginPath();
+            cxt.lineWidth = 1;
+            for (i = 0; i < W + 1; i++) {
+                for (j = 0; j < WA[i].length - 1; j++) {
+                    var x1 = WA[i][j].x;
+                    var y1 = WA[i][j].y;
+                    var x2 = WA[i][j + 1].x;
+                    var y2 = WA[i][j + 1].y;
+                    var xx1 = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * Math.log((Math.tan(Math.PI / 4 + (y1 * Math.PI / 180) / 2)) * Math.pow(((1 - Math.sqrt(e01) * Math.sin(y1 * Math.PI / 180)) / (1 + Math.sqrt(e01) * Math.sin(y1 * Math.PI / 180))), (Math.sqrt(e01) / 2)), Math.E);
+                    var yy1 = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * ((x1 * Math.PI / 180) - 0);
+                    var xx2 = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * Math.log((Math.tan(Math.PI / 4 + (y2 * Math.PI / 180) / 2)) * Math.pow(((1 - Math.sqrt(e01) * Math.sin(y2 * Math.PI / 180)) / (1 + Math.sqrt(e01) * Math.sin(y2 * Math.PI / 180))), (Math.sqrt(e01) / 2)), Math.E);
+                    var yy2 = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * ((x2 * Math.PI / 180) - 0);
+                    cxt.moveTo(yy1 * 0.00001 + 300, 200 - xx1 * 0.00001);
+                    cxt.lineTo(yy2 * 0.00001 + 300, 200 - xx2 * 0.00001);
+                }
+            }
+            cxt.stroke();
+        }
+        var LO1 = 2.35222222;//巴黎经度
+        var LA1 = 48.85661389;//巴黎纬度
+        var LO2 = 116.40966670;//北京经度
+        var LA2 = 39.90690556;//北京纬度
+        var tanLA1 = Math.tan(LA1 / 180 * Math.PI);
+        var tanLA2 = Math.tan(LA2 / 180 * Math.PI);
+        var sinLO1 = Math.sin(LO1 / 180 * Math.PI);
+        var sinLO2 = Math.sin(LO2 / 180 * Math.PI);
+        var cosLO1 = Math.cos(LO1 / 180 * Math.PI);
+        var cosLO2 = Math.cos(LO2 / 180 * Math.PI);
+        var number = 1000;
+        var LOQ = Math.atan(-(tanLA2 * cosLO1 - tanLA1 * cosLO2) / (tanLA2 * sinLO1 - tanLA1 * sinLO2)) * 180 / Math.PI;;//新极点经度
+        var LAQ = -Math.atan(Math.cos((LO1 - LOQ) / 180 * Math.PI) / tanLA1) * 180 / Math.PI;//新极点纬度
+        var difference = LO2 - LO1;//两地经差
+        var dx = difference / number;//轨迹点经差
+        var routes = new Array();
+        var LOQ;//新极点经度
+        var LAQ;//新极点纬度
+        function coordinate() {
+            var m;
+            var n;
+            this.m = m;
+            this.n = n;
+        }
+        function route() {
+            LOQ = Math.atan(-(tanLA2 * cosLO1 - tanLA1 * cosLO2) / (tanLA2 * sinLO1 - tanLA1 * sinLO2)) * 180 / Math.PI;
+            LAQ = -Math.atan(Math.cos((LO1 - LOQ) / 180 * Math.PI) / tanLA1) * 180 / Math.PI;
+            var difference = LO2 - LO1;//北京与巴黎的经差
+            var dx = difference / number;//各小点间的经差
+            var pts = new Array(); //存放点
+            var rr = Math.pow((LOQ - LO2), 2) + Math.pow((LAQ - LA2), 2);
+            for (var i = 0; i < number; i++) {//将点存入数组
+                pts[i] = new coordinate();
+                pts[i].m = LO2 - i * dx;
+                var tx = pts[i].m;
+                var ty = Math.sqrt(rr - Math.pow((LOQ - tx), 2)) + LAQ;
+                pts[i].n = ty;
+                routes[i] = new coordinate();
+                routes[i] = pts[i];
+            }
+        }
+        function Circle() {
+            route();
+            var canvas = document.getElementById("canv");
+            var cxt = canvas.getContext("2d");
+            cxt.beginPath();
+            cxt.strokeStyle = "black";
+            cxt.lineWidth = 2;
+            if (routes != null) {
+                for (var j = 0; j < routes.length; j++) {
+                    var x1 = routes[j].m;
+                    var y1 = routes[j].n;
+                    var xx1 = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * Math.log((Math.tan(Math.PI / 4 + (y1 * Math.PI / 180) / 2)) * Math.pow(((1 - Math.sqrt(e01) * Math.sin(y1 * Math.PI / 180)) / (1 + Math.sqrt(e01) * Math.sin(y1 * Math.PI / 180))), (Math.sqrt(e01) / 2)), Math.E);
+                    var yy1 = ((Math.pow(a1, 2) / b1) / Math.sqrt(1 + e11)) * ((x1 * Math.PI / 180) - 0);
+                    routes[j].m = yy1 * 0.00001 + 300;
+                    routes[j].n = 200 - xx1 * 0.00001;
+                }
+                for (j = 0; j < routes.length - 1; j++) {
+                    cxt.moveTo(routes[j].m, routes[j].n);
+                    cxt.lineTo(routes[j + 1].m, routes[j + 1].n);
+                }
+                cxt.stroke();
+            }
+        }
+    </script>
+</body>
+
+</html>
