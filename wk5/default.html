@@ -1,0 +1,718 @@
+﻿<!DOCTYPE html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<html>
+<head>
+    <title>Calculator</title>
+	<style>
+		table {
+			border: 0px solid #333338;
+			width: 100%;
+			text-align: center;
+		}
+
+		tr {
+			border: 1px solid #0906F1;
+			text-align: center;
+		}
+
+		td {
+			border: 1px solid #000000;
+			text-align: center;
+		}
+
+		canvas {
+			border:0px solid #000000;
+		}
+
+		textarea {
+			width: 99%;
+			height: 99%;
+			border: none;
+			outline: none;
+		}
+
+		input {
+			background-color: white;
+			border: none;
+			color: black;
+			padding: 1px 3px;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			margin: 4px 2px;
+			-webkit-transition-duration: 0.4s;
+			/* Safari */
+			transition-duration: 0.4s;
+			cursor: pointer;
+			border: 2px solid #6495ed;
+		}
+
+		input:hover {
+			background-color: #6495ed;
+			color: white;
+		}
+	</style>
+</head>
+
+<body>
+	<table>
+		<tr>
+			<td>
+				<input type="file" id="filemap" onchange="readmap()">
+				<input type="button" id="showmap" value="显示地图（墨卡托投影）" onclick="show_JSMO()"><!--onclick-->
+			</td>
+			<td>
+				<input type="button" id="S_MO" value="计算面积" onclick="JS_area()"><!--onclick-->
+				<input type="button" id="MO_to_Q" value="计算经纬度-显示" onclick="MO_BL_change()"><!--onclick-->
+				<input type="button" id="S_tixing" value="外接梯形的经纬度坐标面积" onclick="tryarea()"><!--onclick-->
+				<input type="button" id="S_lr" value="固定一条经线的梯形面积积分" onclick="left_right()">
+				<!--
+				根据角度的球面多边形面积=S_BL_area()，梯形球面累加多边形面积=TXQM()
+				球面->平面=面积=PlanarPolygonAreaMeters2()，外接梯形面积=tryarea()
+				固定一天经线进行计算left_right()
+				-->
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<canvas id="canvas" width="800" height="800"></canvas>
+			</td>
+			<td>
+				<textarea name="r_text" id="rr_text" rows="50" onpropertychange="this.style.posHeight=this.scrollHeight "></textarea>
+			</td>
+		</tr>
+	</table>
+	<!--	<tr>    <td>南京市</td><td><canvas id="canvas_nanjing" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>       </tr>
+			<tr>    <td>无锡市</td><td><canvas id="canvas_wuxi" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>          </tr>
+			<tr>    <td>徐州市</td><td><canvas id="canvas_xuzhou" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>        </tr>
+			<tr>    <td>常州市</td><td><canvas id="canvas_changzhou" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>     </tr>
+			<tr>    <td>苏州市</td><td><canvas id="canvas_suzhou" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>        </tr>
+			<tr>    <td>南通市</td><td><canvas id="canvas_nantong" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>       </tr>
+			<tr>    <td>连云港市</td><td><canvas id="canvas_lianyungang" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td> </tr>
+			<tr>    <td>淮安市</td><td><canvas id="canvas_huaian" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>        </tr>
+			<tr>    <td>盐城市</td><td><canvas id="canvas_yancheng" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>      </tr>
+			<tr>    <td>扬州市</td><td><canvas id="canvas_yangzhou" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>      </tr>
+			<tr>    <td>镇江市</td><td><canvas id="canvas_zhenjiang" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>     </tr>
+			<tr>    <td>泰州市</td><td><canvas id="canvas_taizhou" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>       </tr>
+			<tr>    <td>宿迁市</td><td><canvas id="canvas_suqian" width="200"height="20" style="border:1px solid #000000;"></canvas></td><td>"面积"</td>        </tr>
+	-->
+
+	<script type="text/javascript">
+		//多边形面积计算,13个市
+		//根据所给的江苏省境界数据
+		//1、显示并计算江苏省十三个地市的面积
+		//2、编写墨卡托投影反算程序，转换上述数据为经纬度坐标，并显示
+		//3、根据地球椭球体表面上的梯形面积计算方法，基于经纬度坐标计算江苏省十三个地市的面积
+		var map = new Array();//记录地图数据
+		var txtstr = "";//记录txt中所有内容
+		var txtstr_A = new Array();
+		var areas = new Array();//记录面积
+		var BL_areas = new Array();//记录经纬度面积
+		var map_center = new Array();//记录每个区域的中心点
+		var left_right_eare = new Array();//记录左右面积
+		var lr_x = new Array();//记录最大纬度和最小纬度对应的精度
+		function readfile(filename, str_A) {//读取文件
+			var reader = new FileReader();
+			reader.readAsText(filename, "UTF-8");
+			reader.onload = function (f) {
+				txtstr = txtstr + event.target.result;
+			}
+			txtstr_A = txtstr.split("\n");
+
+			for (var i = 0; i < txtstr_A.length + 2; i++) {
+				str_A[i] = new Array();
+				for (j = 0; j < 2; j++) {
+					str_A[i][j] = 0;
+				}
+			}
+			for (var i = 0; i < txtstr_A.length; i++) {//将文件转成数字形式
+				if (isNaN(parseInt(txtstr_A[i]))) {//String(txtstr_A[i])==String(txtstr_A[3])
+					str_A[i][0] = 999;//线结束
+					continue;
+				}
+				str_A[i] = txtstr_A[i].split(",");
+				str_A[i][0] = parseFloat(str_A[i][0]);
+				str_A[i][1] = parseFloat(str_A[i][1]);
+				if (isNaN(str_A[i][1])) {//当有些整数数字判断不出，再一次检查一遍
+					str_A[i][0] = -1;//线开始
+					continue;
+				}
+				continue;
+				//结束初始化
+			}
+			str_A[txtstr_A.length][0] = 999;
+			str_A[txtstr_A.length + 1][0] = 999;
+		}
+
+		function readmap() {//点击“读取文件”事件
+			var filename = document.getElementById("filemap").files[0];
+			readfile(filename, map);
+			//    console.log(map);
+		}
+
+		function show_JSMO() {//点击“显示地图-墨”
+			readmap();
+			var c = document.getElementById("canvas");
+			var ctx = c.getContext("2d");
+			ctx.beginPath();
+			for (var j = 0; j < map.length - 1; j++) {
+				if (map[j][0] == -1) {
+					ctx.moveTo((map[j + 1][0] / 1000 - 12800), 800 - (map[j + 1][1] / 1000 - 3500));
+
+					j++;
+					continue;
+				}
+				if (map[j][0] == 999) {//有END时结束当前画图，开始下一条线
+					if (map[j + 1][0] == 999) {//有两个END结束
+						break;
+					}
+
+					continue;
+				}
+				//既不是起点也不是END
+				ctx.lineTo((map[j][0] / 1000 - 12800), 800 - (map[j][1] / 1000 - 3500));
+			}
+			ctx.strokeStyle = "#000000";//黑色
+			ctx.stroke();
+			ctx.closepath;
+			console.log(map);
+		}
+
+		function JS_area() {//计算江苏省面积，反映在表格中
+			var kx;
+			var ky;
+			var A_num = 0;//记录当前是哪个
+			var S_str = "江苏省面积统计\r\n";//记录面积字符串
+			for (var j = 0; j < 13; j++) {//初始化area数组
+				areas[j] = 0;
+			}
+			for (var i = 0; i < map.length - 1; i++) {
+				if (map[i][0] == -1) {
+					kx = map[i + 1][0];
+					ky = map[i + 1][1];
+					areas[A_num] = map[i + 1][0] * map[i + 2][1] - map[i + 2][0] * map[i + 1][1];
+					i++;
+					continue;
+				}
+				if (map[i][0] == 999) {//有END时结束当前画图，开始下一条线
+					if (map[i + 1][0] == 999) {//有两个END结束
+						break;
+					}
+					areas[A_num] = Math.abs(areas[A_num] / 2);
+					S_str = S_str + (A_num + 1) + "  的面积：" + areas[A_num] + "\r\n";
+					A_num = A_num + 1;
+					areas[A_num] = 0;
+					continue;
+				}
+				areas[A_num] += map[i][0] * map[i + 1][1] - map[i + 1][0] * map[i][1];
+			}
+			document.getElementById("rr_text").value = S_str;
+			console.log(areas);
+		}
+
+		function MO_BL_change() {//墨卡托投影反算,经纬度坐标,54坐标系0.006693421622966
+			var a = 6378245;
+			var b = 6356863.01877;
+			var e_2 = 0.006693421622966;//54坐标系
+			var e2_2 = 0.006738525414684;//e2_2=e'^2
+			//80坐标系：0.006694384999588
+			var e = Math.sqrt(e_2);
+			var BL_str = "54坐标系下：经纬度坐标\r\n";//记录面积字符串
+			var num = 0;
+			var K = (a * a / b) / Math.sqrt(1 + e2_2 * 1);
+			for (var i = 0; i < map.length - 1; i++) {
+				if (map[i][0] == -1) {
+					BL_str = BL_str + "第" + num + "个：" + "\r\n";
+					continue;
+				}
+				if (map[i][0] == 999) {//有END时结束当前画图，开始下一条线
+					if (map[i + 1][0] == 999) {//有两个END结束
+						break;
+					}
+					num = num++;
+					BL_str = BL_str + "END\r\n";
+					continue;
+				}
+				//x=B;y=L;
+				map[i][0] = map[i][0] / K / Math.PI * 180;
+				map[i][1] = map[i][1] / K / Math.PI * 180;
+				//         map[i][0]=map[i][0]/20037508.34 *180;
+				//        map[i][1]=map[i][1]/20037508.34 * 180;
+				map[i][1] = 180 / Math.PI * (2 * Math.atan(Math.exp(map[i][1] * Math.PI / 180)) - Math.PI / 2);
+				BL_str = BL_str + "(" + map[i][0] + "E," + map[i][1] + "N)\r\n";
+			}
+
+			document.getElementById("rr_text").value = "经纬度在Console中！";
+			console.log(map);
+		}
+
+		/*更具角度的多边形面积*/
+		function S_BL_area() {//根据经纬度算面积-54坐标系
+			var totalAngle = 0;//角度
+			var totalnum = 0;//记录当前多边形有几个点
+			var totalarea = 0;//第几个多边形
+			var earthRadiusMeters = 6371000.0;
+			var eartha = 6378245;
+			var e2 = 0.006693421622966;
+			var avg_B = 0;
+			var R = 0;//平均纬圈半径=a*cos(B)/Math.sqrt(1-e2*Math.sin(B)*Math.sin(B))
+			for (var i = 0; i < map.length - 1; i++) {
+				if (map[i][0] == 999) {//当i=END时
+					if (map[i + 1][0] == 999) {//两个END退出
+						break;
+					}
+					//计算当前多边形面积：
+					avg_B = avg_B / totalnum * Math.PI / 180;
+
+					R = eartha * Math.cos(avg_B) / Math.sqrt(1 - e2 * Math.sin(avg_B) * Math.sin(avg_B));
+					var planarTotalAngle = (totalnum - 2) * Math.PI;//多边形内角和
+					var sphericalExcess = totalAngle - planarTotalAngle;  //弧度
+					/*
+								if (sphericalExcess > 420.0)
+								{
+									totalAngle=totalnum*360.0-totalAngle;
+									sphericalExcess=totalAngle-planarTotalAngle;
+								 } else if (sphericalExcess>300.0&&sphericalExcess<420.0)
+								{
+									sphericalExcess=Math.abs(360.0-sphericalExcess);
+								} */
+
+					BL_areas[totalarea] = Math.abs(sphericalExcess / Math.PI * 180 * R);
+
+
+					//重置一些数据
+					totalnum = 0;//下一个多边形的角的数量
+					totalAngle = 0;//下个多边形的。。。
+					totalarea++;//多边形数量+1
+					avg_B = 0;
+					R = 0;
+					continue;
+				}
+				if (map[i][0] == -1) {//i+1=起点
+					//   totalAngle+=Angle(map[i+1][0],map[i+1][1],map[i+2][0],map[i+2][1],map[i+3][0],map[i+3][1]);
+					continue;
+				}
+				if (map[i + 2][0] == 999) {//i+2=END时
+					var a = i - totalnum;//a=当前多边形起点
+					avg_B += map[i][1];
+					totalAngle += Angle(map[i][0], map[i][1], map[i + 1][0], map[i + 1][1], map[a][0], map[a][1]);
+					totalnum++;
+					continue;
+				}
+				if (map[i + 1][0] == 999) {//i+1=END时
+					var a = i - totalnum;//a=当前多边形起点
+					avg_B += map[i][1];
+					totalAngle += Angle(map[i][0], map[i][1], map[a][0], map[a][1], map[a + 1][0], map[a + 1][1]);
+					totalnum++;
+					continue;
+				}
+
+				//正常情况下
+				totalAngle += Angle(map[i][0], map[i][1], map[i + 1][0], map[i + 1][1], map[i + 2][0], map[i + 2][1]);
+				avg_B += map[i][1];
+				totalnum++;
+			}
+			console.log(BL_areas);
+			//反映面积变化
+			area_BLarea();
+
+		}
+
+		/*角度*/
+		function Angle(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y) {
+			var bearing21 = Bearing(p2_y, p2_x, p1_y, p1_x);
+			var bearing23 = Bearing(p2_y, p2_x, p3_y, p3_x);
+			var angle = bearing21 - bearing23;
+			if (angle < 0) {
+				angle += 360;
+			}
+			return angle * Math.PI / 180;  //弧度
+		}
+
+
+		/*方向*/
+		function Bearing(lat1, lon1, lat2, lon2) {
+			var radiansPerDegree = Math.PI / 180.0;
+			var lat1 = lat1 * radiansPerDegree;
+			var lon1 = lon1 * radiansPerDegree;
+			var lat2 = lat2 * radiansPerDegree;
+			var lon2 = lon2 * radiansPerDegree;
+			var angle = -Math.atan2(Math.sin(lon1 - lon2) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon1 - lon2));
+			if (angle < 0) {
+				angle += Math.PI * 2.0;
+			}
+			angle = angle * 180.0 / Math.PI;
+			return angle;
+		}
+
+		/*梯形球面累加多边形面积*/
+		function TXQM() {//未完成......BL_areas
+			//记录起点
+			var cB;//起始点纬度
+			var cL;//起始点经度
+			var cc_B;//中点纬度
+			var cc_L;//中点经度
+			var cs = 0;//记录面积
+			var B = 0; var L = 0; var dB = 0; var dL = 0;//传入参数
+			var cnum = 0;//记录当前是第几个面积
+			var pointnum = 0; var centernum = 0;
+			var max = 0; var min = 0; var left = 0; var right = 0;
+			//初始化数组
+			for (var i = 0; i < areas.length; i++) {
+				map_center[i] = new Array();
+				for (var j = 0; j < 2; j++) {
+					map_center[i][j] = 0;
+				}
+			}
+
+
+			//计算每个多边形中的中点
+			for (var i = 0; i < map.length; i++) {
+				if (map[i][0] == -1) {//开始
+					max = map[i + 1][1];
+					min = map[i + 1][1];
+					left = map[i + 1][0];
+					right = map[i + 1][0];
+					continue;
+				}
+				if (map[i][0] == 999) {//当前区域结束
+					//得到中点
+					map_center[centernum][0] = (left + right) / 2;
+					map_center[centernum][1] = (max + min) / 2;
+					centernum++;
+					max = 0; min = 0; left = 0; right = 0;
+					if (map[i + 1][0] == 999) {
+						break;
+					}
+					continue;
+				}
+				//普通点
+				if (max < map[i][1]) {
+					max = map[i][1];
+				}
+				if (min > map[i][1]) {
+					min = map[i][1];
+				}
+				if (left > map[i][0]) {
+					left = map[i][0];
+				}
+				if (right < map[i][0]) {
+					right = map[i][0];
+				}
+
+			}
+
+			//累计计算球面面积
+			for (var i = 0; i < map.length; i++) {
+				if (map[i][0] == -1) {
+					cB = map_center[pointnum][1];//B=y
+					cL = map_center[pointnum][0];//L=x
+					continue;
+				}
+				if (map[i][0] == 999) {
+					//当面积结束时
+					BL_areas[cnum] = cs;
+					cnum++;
+					cs = 0;
+					pointnum = 0;
+					if (map[i + 1][0] == 999) {
+						break;
+					}
+					continue;
+				}
+				//两个点+中点
+				if (map[i + 1][0] == 999) {//最后一个点+起点(i-pointnum)
+
+					cc_B = (map[i][1] + map[i - pointnum][1]) / 2;
+					cc_L = (map[i][0] + map[i - pointnum][0]) / 2;
+					B = findmin(map[i][1], map[i - pointnum][1], cc_B, cB);
+					L = findmin(map[i][0], map[i - pointnum][0], cc_L, cL);
+					dB = findmax(map[i][1], map[i - pointnum][1], cc_B, cB) - B;
+					dL = findmax(map[i][0], map[i - pointnum][0], cc_L, cL) - L;
+					cs = cs + ccarea(B, L, dB, dL);
+					continue;
+				}
+				//通常情况下
+				cc_B = (map[i][1] + map[i + 1][1]) / 2;
+				cc_L = (map[i][0] + map[i + 1][0]) / 2;
+				B = findmin(map[i][1], map[i + 1][1], cc_B, cB);
+				L = findmin(map[i][0], map[i + 1][0], cc_L, cL);
+				dB = findmax(map[i][1], map[i + 1][1], cc_B, cB) - B;
+				dL = findmax(map[i][0], map[i + 1][0], cc_L, cL) - L;
+				cs = cs + ccarea(B, L, dB, dL);
+				//面积计算结束后
+				pointnum++;
+			}
+			console.log(BL_areas);
+			//显示面积差
+			area_BLarea();
+		}
+
+		function ccarea(B, L, dB, dL) {//计算梯形面积B=φ ，L=λ ，dB=纬度变化，dL=经度变化
+			var s;//记录当前球面梯形面积
+			//角度转弧度
+			B = B * Math.PI / 180;
+			L = L * Math.PI / 180;
+			dB = dB * Math.PI / 180;
+			dL = dL * Math.PI / 180;
+			//54坐标系
+			var a = 6378245;
+			var e = Math.sqrt(0.006693421622966);
+			var e2 = 0.006693421622966;
+			//计算参数
+			var M = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(B) * Math.sin(B), 1.5);
+			var N = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(B) * Math.sin(B), 0.5);
+			s = M * N * Math.cos(B) * dB * dL;
+			return s;
+		}
+
+		function findmax(a, b, c, d) {//找四个值的最大值
+			var max = a;
+			if (max <= b) {
+				max = b;
+			}
+			if (max <= c) {
+				max = c;
+			}
+			if (max <= d) {
+				max = d;
+			}
+			return max;
+		}
+
+		function findmin(a, b, c, d) {//找四个值的最小值
+			var min = a;
+			if (min > b) {
+				min = b;
+			}
+			if (min > c) {
+				min = c;
+			}
+			if (min > d) {
+				min = d;
+			}
+			return min;
+		}
+
+		function area_BLarea() {//反映平面-球面
+
+
+			//BL_area
+			var str2 = "平面-球面外接梯形面积的差(area-BL_areas)（平方千米）：\r\n";
+			for (var i = 0; i < BL_areas.length; i++) {
+				str2 = str2 + "第" + i + "个：" + (areas[i] - BL_areas[i]) / 1000000 + "\r\n";
+			}
+			document.getElementById("rr_text").value = "";
+			document.getElementById("rr_text").value = str2;
+		}
+
+		function area_lrarea() {
+			//计算积分梯形的面积差
+			var str1 = "平面-球面梯形累加面积的差（area-left_right_eare）(平方千米)：\r\n";
+			for (var i = 0; i < areas.length; i++) {
+				str1 = str1 + "第" + i + "个：" + (areas[i] - left_right_eare[i]) / 1000000 + "\r\n";
+			}
+			document.getElementById("rr_text").value = "";
+			document.getElementById("rr_text").value = str1;
+		}
+
+
+		/*球面->平面=面积*/
+		function PlanarPolygonAreaMeters2() {
+			var s = 0;
+			var xi = 0; var yi = 0; var xj = 0; var yj = 0;
+			var metersPerDegree = 2.0 * Math.PI * 6378245 / 360.0;
+			var mapnum = 0;//记录是当前区域的第几个点
+			var ppnum = 0;
+			for (var i = 0; i < map.length; i++) {
+				if (map[i][0] == -1) {
+					continue;
+				}
+				if (map[i][0] == 999) {
+					BL_areas[ppnum] = s;
+					ppnum++;
+					s = 0;
+					mapnum = 0;
+					if (map[i + 1][0] == 999) {
+						break;
+					}
+					continue;
+				}
+				if (map[i + 1][0] == 999) {//最后一个有效点
+					xi = map[i][0] * metersPerDegree * Math.cos(map[i][1] * Math.PI / 180.0);
+					yi = map[i][1] * metersPerDegree;
+					xj = map[i - mapnum][0] * metersPerDegree * Math.cos(map[i][1] * Math.PI / 180.0);
+					yj = map[i - mapnum][1] * metersPerDegree;
+					s = s + xi * yj - xj * yi;
+				}
+				//通常点
+				xi = map[i][0] * metersPerDegree * Math.cos(map[i][1] * Math.PI / 180.0);
+				yi = map[i][1] * metersPerDegree;
+				xj = map[i + 1][0] * metersPerDegree * Math.cos(map[i][1] * Math.PI / 180.0);
+				yj = map[i + 1][1] * metersPerDegree;
+				s = s + xi * yj - xj * yi;
+				mapnum++;
+			}
+			//反映变化
+			console.log(BL_areas);
+			area_BLarea();
+		}
+
+		/*外接梯形面积*/
+		function tryarea() {//测试
+			//外接梯形面积
+			//记录起点
+			var cnum = 0;//记录当前是第几个面积
+			var max = 0; var min = 0; var left = 0; var right = 0;
+
+
+			//累计计算球面面积
+			for (var i = 0; i < map.length; i++) {
+				if (map[i][0] == -1) {
+					max = map[i + 1][1];
+					min = map[i + 1][1];
+					left = map[i + 1][0];
+					right = map[i + 1][0];
+					continue;
+				}
+				if (map[i][0] == 999) {
+					//当面积结束时
+					BL_areas[cnum] = ccarea(min, left, max - min, right - left);
+					cnum++;
+					if (map[i + 1][0] == 999) {
+						break;
+					}
+					continue;
+				}
+				//通常情况下
+				if (max < map[i][1]) {
+					max = map[i][1];
+				}
+				if (min > map[i][1]) {
+					min = map[i][1];
+				}
+				if (left > map[i][0]) {
+					left = map[i][0];
+				}
+				if (right < map[i][0]) {
+					right = map[i][0];
+				}
+				//面积计算结束后
+
+			}
+			console.log(BL_areas);
+			//显示面积差
+			area_BLarea();
+			//计算总面积
+			conarea();
+		}
+
+		function left_right() {//固定一条经线
+			//初始化left_right_eare面积
+			for (var i = 0; i < areas.length; i++) {
+				left_right_eare[i] = 0;
+			}
+
+			//初始化lr_x,0=min,1=max,2=right
+			for (var i = 0; i < areas.length; i++) {
+				lr_x[i] = new Array();
+				for (var j = 0; j < 3; j++) {
+					lr_x[i][j] = 0;
+				}
+			}
+			//找lr_x
+			var lr_num = 0;
+			for (var i = 0; i < map.length; i++) {
+				if (map[i][0] == -1) {
+					var y_max = map[i + 1][1];
+					var y_min = map[i + 1][1];
+					lr_x[lr_num][0] = map[i + 1][0];
+					lr_x[lr_num][1] = map[i + 1][0];
+					lr_x[lr_num][2] = map[i + 1][0];
+					continue;
+				}
+				if (map[i][0] == 999) {
+					if (lr_x[lr_num][0] > lr_x[lr_num][1]) {
+						var c = lr_x[lr_num][0];
+						lr_x[lr_num][0] = lr_x[lr_num][1];
+						lr_x[lr_num][1] = c;
+					}
+
+					lr_num++;
+					if (map[i + 1][0] == 999) {
+						break;
+					}
+					continue;
+				}
+				if (map[i][1] > y_max) {
+					y_max = map[i][1];
+					lr_x[lr_num][0] = map[i][0];
+				}
+				if (map[i][1] < y_min) {
+					y_min = map[i][1];
+					lr_x[lr_num][1] = map[i][0];
+				}
+				if (map[i][0] > lr_x[lr_num][2]) {//记录right值
+					lr_x[lr_num][2] = map[i][0];
+				}
+			}
+
+			console.log(lr_x);
+			//计算面积
+			lr_num = 0;
+			var snum = 0;//有几块面积
+			var Boundary = 0;
+			for (var i = 0; i < map.length; i++) {
+				if (map[i + 1][0] == 999) {
+					lr_num++;
+					snum++;
+					if (map[i + 2][0] == 999) {
+						break;
+					}
+					continue;
+				}
+				if (map[i][0] == -1) {
+					Boundary = (lr_x[lr_num][0] + lr_x[lr_num][1]) / 2;
+					continue;
+				}
+
+				//i和i+1,ccarea(B,L,dB,dL)
+				if (map[i][0] <= Boundary && map[i + 1][0] <= Boundary) {//++
+					var lr_b = map[i][1]; var lr_tb = Math.abs(map[i + 1][1] - map[i][1]);
+					var lr_l = (map[i][0] + map[i + 1][0]) / 2; var lr_tl = Math.abs(lr_x[lr_num][2] - lr_l);
+					left_right_eare[snum] = left_right_eare[snum] + ccarea(lr_b, lr_l, lr_tb, lr_tl);
+				}
+				if (map[i][0] > Boundary && map[i + 1][0] > Boundary) {//--
+					var lr_b = map[i][1]; var lr_tb = Math.abs(map[i + 1][1] - map[i][1]);
+					var lr_l = (map[i][0] + map[i + 1][0]) / 2; var lr_tl = Math.abs(lr_x[lr_num][2] - lr_l);
+					left_right_eare[snum] = left_right_eare[snum] - ccarea(lr_b, lr_l, lr_tb, lr_tl);
+				}
+			}
+			console.log(left_right_eare);
+			//反映一些面积差
+			area_lrarea();
+			conarea();
+
+		}
+
+		function conarea() {//对比一些面积
+			var s_tp = 0;//投影下的面积
+			for (var i = 0; i < areas.length; i++) {
+				s_tp += areas[i] / 1000000;
+			}
+			alert("areas（平方千米）:" + s_tp);
+			s_tp = 0;
+			for (var i = 0; i < left_right_eare.length; i++) {
+				s_tp += left_right_eare[i] / 1000000;
+			}
+			alert("left_right_eare（平方千米）:" + s_tp);
+			s_tp = 0;
+			for (var i = 0; i < BL_areas.length; i++) {
+				s_tp += BL_areas[i] / 1000000;
+			}
+			alert("BL_areas（平方千米）:" + s_tp);
+		}
+
+	</script>
+</body>
+</html>
