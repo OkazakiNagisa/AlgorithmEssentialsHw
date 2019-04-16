@@ -4,6 +4,55 @@
 
 <head>
     <title>数据压缩</title>
+    <style>
+        table {
+            border: 0px solid #333338;
+            width: 100%;
+            text-align: center;
+        }
+
+        tr {
+            border: 1px solid #0906F1;
+            text-align: center;
+        }
+
+        td {
+            border: 1px solid #000000;
+            text-align: center;
+        }
+
+        canvas {
+            border: 0px solid #000000;
+        }
+
+        textarea {
+            width: 99%;
+            height: 99%;
+            border: none;
+            outline: none;
+        }
+
+        input {
+            background-color: white;
+            border: none;
+            color: black;
+            padding: 1px 3px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px 2px;
+            -webkit-transition-duration: 0.4s;
+            /* Safari */
+            transition-duration: 0.4s;
+            cursor: pointer;
+            border: 2px solid #6495ed;
+        }
+
+        input:hover {
+            background-color: #6495ed;
+            color: white;
+        }
+    </style>
 </head>
 
 <body>
@@ -37,29 +86,12 @@
     <table>
         <tr>
             <td>
-                <canvas id="canvas" width="1200" height="800" style="border:1px solid #000000;">
+                <canvas id="canvas" width="1200" height="800" style="border:1px dashed gray;">
                 </canvas>
             </td>
 
         </tr>
     </table>
-    <style>
-        table {
-            border: 1px solid #333338;
-            width: 100%;
-            text-align: center;
-        }
-
-        tr {
-            border: 1px solid #0906F1;
-            text-align: center;
-        }
-
-        td {
-            border: 1px solid #000000;
-            text-align: center;
-        }
-    </style>
 </body>
 
 <script type="text/javascript">
