@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<head>
+    <title>数据压缩</title>
+</head>
+
+<body>
+    <table>
+        <tr>
+            <td>
+                输入文件：
+                <input type="file" id="filemap">
+                <input type="button" id="readmap" value="读取文件" onclick="readmap()">
+                <!--onclick-->
+                <input type="button" id="showm" value="显示兰勃特投影的低通" onclick="China_L_change()">
+                <input type="button" id="DP_YS" value="道格拉斯一普克法压缩" onclick="DP()">
+                压缩度(%)：
+                <input type="text" id="result_DP">
+                <!--                     <input list="YS_pp">
+                     <datalist id="YS_PP">
+                         <option>10</option>
+                         <option>20</option>
+                         <option>30</option>
+                         <option>40</option>
+                         <option>50</option>
+                         <option>60</option>
+                         <option>70</option>
+                         <option>80</option>
+                         <option>90</option>
+                     </datalist>  
+-->
+            </td>
+        </tr>
+    </table>
+    <table>
+        <tr>
+            <td>
+                <canvas id="canvas" width="1200" height="800" style="border:1px solid #000000;">
+                </canvas>
+            </td>
+
+        </tr>
+    </table>
+    <style>
+        table {
+            border: 1px solid #333338;
+            width: 100%;
+            text-align: center;
+        }
+
+        tr {
+            border: 1px solid #0906F1;
+            text-align: center;
+        }
+
+        td {
+            border: 1px solid #000000;
+            text-align: center;
+        }
+    </style>
+</body>
+
+<script type="text/javascript">
+    //1、根据道格拉斯一普克法，编写程序对经过兰勃特投影的中国版图数据进行压缩和过滤
+    //2、屏幕绘图显示压缩前后的地图数据
+    //3、数据压缩率为50%
+    var map = new Array();//记录地图数据**map[i][2]=这个点是否需要
+    //map[i][0]=x,map[i][1]=y 
+    var txtstr = "";//记录txt中所有内容
+    var txtstr_A = new Array();
+    var star_end = new Array();//记录起点-终点0=x1,1=y1,2=x2,3=y2，4=dis
+    var pointnum = 0;//所有点
+    var DP_pointnum = 0;//有效点
+    var DP_num = 1;//记录当前是第几次压缩
+    function readfile(filename, str_A) {//读取文件
+        //记录有多少个区域
+        var areanum = 0;
+        var reader = new FileReader();
+        reader.readAsText(filename, "UTF-8");
+        reader.onload = function (f) {
+            txtstr = txtstr + event.target.result;
+        }
+        txtstr_A = txtstr.split("\n");
+        for (var i = 0; i < txtstr_A.length + 2; i++) {
+            str_A[i] = new Array();
+            for (j = 0; j < 3; j++) {
+                str_A[i][j] = 0;
+            }
+        }
+        for (var i = 0; i < txtstr_A.length; i++) {//将文件转成数字形式
+            if (isNaN(parseInt(txtstr_A[i]))) {//String(txtstr_A[i])==String(txtstr_A[3])
+                str_A[i][0] = 999;//线结束
+                continue;
+            }
+            str_A[i] = txtstr_A[i].split(",");
+            str_A[i][0] = parseFloat(str_A[i][0]);
+            str_A[i][1] = parseFloat(str_A[i][1]);
+            if (isNaN(str_A[i][1])) {//当有些整数数字判断不出，再一次检查一遍
+                str_A[i][0] = -1;//线开始
+                areanum++;
+                continue;
+            }
+            continue;
+            //结束初始化
+        }
+        str_A[txtstr_A.length][0] = 999;
+        str_A[txtstr_A.length + 1][0] = 999;
+        //初始化起点-终点-中间距离
+        for (var i = 0; i < areanum; i++) {
+            star_end[i] = new Array();
+            for (var j = 0; j < 5; j++) {
+                star_end[i][j] = 0;
+            }
+        }
+    }
+    function readmap() {//点击“读取文件”事件
+        var filename = document.getElementById("filemap").files[0];
+        readfile(filename, map);
+        //    console.log(map);
+    }
+    function China_L_change() {//中国-兰勃特投影转换
+        //a=6378245,e^2=0.006693421622966
+        //每次都需要重新读取
+        readmap();
+        var a = 6378245;
+        var e2 = 0.006693421622966;
+        var e = Math.sqrt(e2);
+        var B1 = 20 * Math.PI / 180;
+        var B2 = 40 * Math.PI / 180;
+        var m_0_B1 = Math.cos(B1) / Math.sqrt(1 - e2 * Math.pow(Math.sin(B1), 2))//对原点的mB1
+        var m_0_B2 = Math.cos(B2) / Math.sqrt(1 - e2 * Math.pow(Math.sin(B2), 2))//对原点的mB2
+        var t_0_B1 = Math.tan(Math.PI / 4 - (B1) / 2) / Math.pow((1 - e * Math.sin(B1)) / (1 + e * Math.sin(B1)), e / 2);//tB1
+        var t_0_B2 = Math.tan(Math.PI / 4 - (B2) / 2) / Math.pow((1 - e * Math.sin(B2)) / (1 + e * Math.sin(B2)), e / 2);//tB2
+        var t0 = Math.tan(Math.PI / 4) / Math.pow((1 - e * Math.sin(0)) / (1 + e * Math.sin(0)), e / 2);//tB0
+        var n = (Math.log(m_0_B1 / m_0_B2) / Math.LN10) / (Math.log(t_0_B1 / t_0_B2) / Math.LN10);
+        var F = m_0_B1 / (n * Math.pow(t_0_B1, n));
+        var r0 = a * F * Math.pow(t0, n);
+        //计算各个坐标转换之后的值
+        for (var i = 0; i < map.length; i++) {
+            if (map[i][0] == -1) {
+                continue;
+            }
+            if (map[i][0] == 999) {
+                continue;
+            }
+            var B = parseFloat(map[i][1]); var L = map[i][0];
+            var L_A = n * (L - 105) * Math.PI / 180;//L_A=θ的弧度
+            var B_p = B * Math.PI / 180;//B_p=角度转弧度后的值
+            var t_L = Math.tan(Math.PI / 4 - (B_p) / 2) / Math.pow((1 - e * Math.sin(B_p)) / (1 + e * Math.sin(B_p)), e / 2);
+            var r = a * F * Math.pow(t_L, n);
+            map[i][1] = 600 - (r0 - r * Math.cos(L_A)) / 10000;
+            map[i][0] = (r * Math.sin(L_A)) / 10000 + 600;
+            map[i][2] = 1;
+            //记录总共有多少个点=pointnum
+            pointnum++;
+        }
+        Draw_try();
+        //console-map
+        console.log(map);
+    }
+    function Draw_try() {//直接绘制map，不做处理
+        clearCanvas();
+        var c = document.getElementById("canvas");
+        var ctx = c.getContext("2d");
+        ctx.beginPath();
+        for (var j = 0; j < map.length; j++) {
+            if (map[j][0] == -1) {
+                ctx.moveTo((map[j + 1][0]), (map[j + 1][1]) + 100);
+                j = j + 1;
+                continue;
+            }
+            if (map[j][0] == 999) {//有END时结束当前画图，开始下一条线
+                if (map[j + 1][0] == 999) {//有两个END结束
+                    break;
+                }
+                continue;
+            }
+            //既不是起点也不是END
+            if (map[j][2] == 1) {
+                ctx.lineTo((map[j][0]), (map[j][1]) + 100);
+            }
+        }
+        ctx.strokeStyle = "#FF0000";
+        ctx.stroke();
+        ctx.closepath;
+    }
+    function clearCanvas() {//清空画布
+        var c = document.getElementById("canvas");
+        var cxt = c.getContext("2d");
+        cxt.clearRect(0, 0, c.width, c.height);
+    }
+    function DP() {//道格拉斯-普朗克数据压缩
+        //map[i][2]=0-不取，=1-取
+        //A，B，C记录曲线MN的方程
+        DP_num++;
+        var A = 0;
+        var B = 0;
+        var C = 0;
+        var D_se = 0;//记录起点-终点距离
+        var d = 0;//记录当前距离
+        var areanum = 0;
+        //每次重新开始计算时，DP_pointnum=0
+        DP_pointnum = 0;
+        findstarend();//找起点-终点-中间距离
+        //计算A，B，C
+        for (var i = 0; i < map.length; i++) {
+            if (map[i][0] == -1) {//开始
+                D_se = Math.sqrt(Math.pow(star_end[areanum][1] - star_end[areanum][3], 2) + Math.pow(star_end[areanum][0] - star_end[areanum][2], 2))
+                A = (star_end[areanum][1] - star_end[areanum][3]) / D_se;
+                B = (star_end[areanum][2] - star_end[areanum][0]) / D_se;
+                C = (star_end[areanum][0] * star_end[areanum][3] - star_end[areanum][2] * star_end[areanum][1]) / D_se;
+                //起点一定要取
+                map[i + 1][2] = 1;
+                DP_pointnum++;
+                i++;
+                continue;
+            }
+            if (map[i][0] == 999) {//结束
+                if (star_end[areanum][2] == map[i - 2][0] && star_end[areanum][3] == map[i - 2][1]) {
+                    map[i - 2][2] = 1;
+                    DP_pointnum++;
+                }
+                map[i - 1][2] = 1;
+                DP_pointnum++;
+                areanum++;
+                if (map[i + 1][0] == 999) {
+                    break;
+                }
+                continue;
+            }
+            //判断是否是可取的，如果上次存在数据，先清空
+            if (map[i][2] == 1) {//当上一次可取时，判断当前是否可取
+                map[i][2] = 0;//先设为不可取
+                d = Math.abs(A * map[i][0] + B * map[i][1] + C);
+                if (d > star_end[areanum][4]) {//距离大于中间值=取
+                    map[i][2] = 1;
+                    DP_pointnum++;
+                }
+            }
+        }
+        //绘制
+        Draw_try();
+        //计算压缩效率
+        document.getElementById("result_DP").value = (1 - DP_pointnum / pointnum) * 100;
+        //console-map
+        console.log(map);
+    }
+    function findstarend() {//找起点-终点+最大距离-最小距离=ε 
+        var areanum = 0;
+        var max = 0; var min = 0;
+        var A = 0; var B = 0; var C = 0; var D_se = 0;
+        var d = 0;//记录当前的距离
+        //找起点-终点
+        for (var i = 0; i < map.length; i++) {
+            if (map[i][0] == -1) {
+                star_end[areanum][0] = map[i + 1][0];
+                star_end[areanum][1] = map[i + 1][1];
+                continue;
+            }
+            if (map[i][0] == 999) {
+                if (star_end[areanum][0] == map[i - 1][0] && star_end[areanum][1] == map[i - 1][1]) {//当最后一个点是起点时
+                    star_end[areanum][2] = map[i - 2][0];
+                    star_end[areanum][3] = map[i - 2][1];
+                }
+                else {//当最后一个点是终点，不是起点
+                    star_end[areanum][2] = map[i - 1][0];
+                    star_end[areanum][3] = map[i - 1][1];
+                }
+                areanum++;
+                if (map[i + 1][0] == 999) {
+                    break;
+                }
+                continue;
+            }
+        }
+        //依据当前是第几次压缩进行判断中间距离的取值   
+        //找中间距离(1-1/num)*(max-min)
+        areanum = 0;
+        for (var i = 0; i < map.length; i++) {
+            if (map[i][0] == -1) {
+                D_se = Math.sqrt(Math.pow(star_end[areanum][1] - star_end[areanum][3], 2) + Math.pow(star_end[areanum][0] - star_end[areanum][2], 2))
+                A = (star_end[areanum][1] - star_end[areanum][3]) / D_se;
+                B = (star_end[areanum][2] - star_end[areanum][0]) / D_se;
+                C = (star_end[areanum][0] * star_end[areanum][3] - star_end[areanum][2] * star_end[areanum][1]) / D_se;
+                max = 0; min = 0;
+                i++;
+                continue;
+            }
+            if (map[i][0] == 999) {//区域结束
+                star_end[areanum][4] = (max - min) * (1 - 1 / DP_num);
+                areanum++;
+                if (map[i + 1][0] == 999) {
+                    break;
+                }
+                continue;
+            }
+            if (map[i + 1][0] == 999) {//当是区域的终点时
+                continue;
+            }
+            //计算距离，除去起点+终点
+            if (map[i][2] == 1) {
+                d = Math.abs(A * map[i][0] + B * map[i][1] + C);
+                if (max < d) {
+                    max = d;
+                }
+                if (min > d) {
+                    min = d;
+                }
+            }
+        }
+        //console输出star_end
+        console.log(star_end);
+    }
+</script>
+
+</html>
