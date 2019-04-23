@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<head>
+    <title>四叉树</title>
+    <style>
+            table {
+            border: 0px solid #333338;
+            width: 100%;
+            text-align: center;
+        }
+
+        tr {
+            border: 1px solid #0906F1;
+            text-align: center;
+        }
+
+        td {
+            border: 1px solid #000000;
+            text-align: center;
+        }
+
+        canvas {
+            border: 0px solid #000000;
+        }
+
+        textarea {
+            width: 99%;
+            height: 99%;
+            border: 1px dashed black;
+            outline: none;
+        }
+
+        input {
+            background-color: white;
+            border: none;
+            color: black;
+            padding: 1px 3px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px 2px;
+            -webkit-transition-duration: 0.4s;
+            /* Safari */
+            transition-duration: 0.4s;
+            cursor: pointer;
+            border: 2px solid #6495ed;
+        }
+
+        input:hover {
+            background-color: #6495ed;
+            color: white;
+        }
+        </style>
+</head>
+
+<body>
+    <table>
+        <tr>
+            <td>
+                输入文件
+                <input type="file" id="filetxt">
+                <input type="button" id="b_readfile" value="读取文件" onclick="readtree()">
+                <input type="button" id="b_try" value="四叉树四进制编码" onclick="show()">
+            </td>
+        </tr>
+    </table>
+    <div>
+        <textarea name="result_text" id="result_text" cols="100" rows="30"
+            onpropertychange="this.style.posHeight=this.scrollHeight ">四叉树：</textarea>
+    </div>
+
+
+
+
+</body>
+
+
+<script type="text/javascript">
+    //编写求取下述矩阵四叉树四进制M码程序，并将运算结果返回。
+    var tree = new Array();//记录四叉树内容，依据大小进行初始化
+    var fourtree = new Array();//记录依据行列号的四叉树
+    var txtstr = "";//记录txt中所有内容
+    var txtstr_A = new Array();
+    var resulttree = new Array();//记录结果2：（10，2，2）
+    function readtree() {//读取树文件
+        var filename = document.getElementById("filetxt").files[0];
+        readfile(filename, tree, fourtree);
+    }
+    function readfile(filename, str_A, ss_A) {//存储树文件
+        var reader = new FileReader();
+        reader.readAsText(filename, "UTF-8");
+        reader.onload = function (f) {
+            txtstr = txtstr + event.target.result;
+        }
+        txtstr_A = txtstr.split("\n");
+        //读取行列数
+        var str = new Array();
+        str = txtstr_A[0].split(",");
+        var str_txt = new Array();//记录每行的数据
+        //进行初始化str_A+ss_A
+        for (var i = 0; i < str[0]; i++) {
+            str_A[i] = new Array();
+            ss_A[i] = new Array();
+            for (var j = 0; j < str[1]; j++) {
+                str_A[i][j] = 0;
+                ss_A[i][j] = 0;
+            }
+        }
+        //开始录入四叉树
+        for (var i = 0; i < str[0]; i++) {
+            str_txt = txtstr_A[i + 1].split(",");
+            for (var j = 0; j < str[1]; j++) {
+                str_A[i][j] = parseInt(str_txt[j]);
+            }
+        }
+
+    }
+    function show() {
+        readtree();
+        console.log(tree);
+        var totalnum = tree.length * tree.length;
+        var deep_A = new Array();//记录有几层深度
+        for (var i = 1; i < totalnum; i++) {
+            if (totalnum / Math.pow(2, i) / Math.pow(2, i) < 1) {
+                break;
+            }
+            deep_A[i] = totalnum / Math.pow(2, i) / Math.pow(2, i);
+        }
+
+        //初始化结果的数值
+        for (var i = 0; i < findmaxvalue(); i++) {
+            resulttree[i] = new Array();
+            for (var j = 0; j < 3; j++) {
+                resulttree[i][j] = 0;
+            }
+        }
+        for (var i = 0; i < fourtree.length; i++) {
+            for (var j = 0; j < fourtree.length; j++) {
+                //第三层
+                fourtree[i][j] = toBinary(i.toString(2)) * 2 + toBinary(j.toString(2));
+            }
+        }
+        //开始合并
+        for (var i = 0; i < fourtree.length - 1; i++) {
+            for (var j = 0; j < fourtree.length - 1; j++) {
+                if (tree[i][j] == tree[i][j + 1] && tree[i][j] == tree[i + 1][j] && tree[i][j] == tree[i + 1][j + 1]) {
+                    fourtree[i][j + 1] = fourtree[i][j];
+                    fourtree[i + 1][j] = fourtree[i][j];
+                    fourtree[i + 1][j + 1] = fourtree[i][j];
+                }
+            }
+        }
+        //开始记录4进制
+        for (var i = 0; i < fourtree.length; i++) {
+            for (var j = 0; j < fourtree.length; j++) {
+                resulttree[tree[i][j]][2] = tree[i][j];//记录值
+                resulttree[tree[i][j]][1] = resulttree[tree[i][j]][1] + 1;//记录有几个相同的数
+                resulttree[tree[i][j]][0] = fourtree[i][j];//记录morton码
+            }
+        }
+        //将有几个相同的数转为深度，将morton转为字符
+        for (var i = 0; i < resulttree.length; i++) {
+            for (var k = 1; k < deep_A.length; k++) {
+                if (resulttree[i][1] == deep_A[k]) {
+                    resulttree[i][1] = k;
+                    if (k == 2) {
+                        resulttree[i][0] = resulttree[i][0] / Math.pow(10, deep_A.length - 1 - k);
+                    }
+                    break;
+                }
+            }
+        }
+        showtxt();
+        console.log(fourtree);
+        console.log(resulttree);
+        console.log(deep_A);
+
+    }
+    function toBinary(str1) {//返回二进制字符串
+        //进行四进制编码
+        var a = 0;
+        //    var b=0;
+        var str1_A = new Array();
+        //    var str2_A=new Array();
+        str1_A = str1.split("");
+        //    str2_A=str2.split("");
+        for (var i = 0; i < str1_A.length; i++) {
+
+            a = a + parseInt(str1_A[i]) * Math.pow(10, str1_A.length - i - 1);
+            //        b=b+parseInt(str2_A[i])*Math.pow(10,str2_A.length-i);
+        }
+
+        return a;
+    }
+    function findmaxvalue() {//找到实际数值的最大值，并返回
+        var max = 0;
+        for (var i = 0; i < tree.length; i++) {
+            for (var j = 0; j < tree.length; j++) {
+                if (tree[i][j] > max) {
+                    max = tree[i][j];
+                }
+            }
+        }
+        return (max + 1);
+    }
+    function showtxt() {//将结果输出至txterea
+        var str = "\r\n";
+        for (var i = 0; i < resulttree.length; i++) {
+            if (resulttree[i][1] != 0) {
+                str = str + i + "  :(" + resulttree[i][0] + "," + resulttree[i][1] + "," + resulttree[i][2] + ")\r\n";
+            }
+        }
+        document.getElementById("result_text").innerText = document.getElementById("result_text").value + str;
+    }
+</script>
+
+</html>
