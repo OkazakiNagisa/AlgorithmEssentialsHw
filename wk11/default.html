@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<head>
+    <title>多边形拓扑生成</title>
+    	<style>
+		table {
+			border: 0px solid #333338;
+			width: 100%;
+			text-align: center;
+		}
+
+		tr {
+			border: 1px solid #0906F1;
+			text-align: center;
+		}
+
+		td {
+			border: 1px solid #000000;
+			text-align: center;
+		}
+
+		canvas {
+			border: 0px solid #000000;
+		}
+
+		textarea {
+			width: 99%;
+			height: 99%;
+			border: 1px dashed black;
+			outline: none;
+		}
+
+		input {
+			background-color: white;
+			border: none;
+			color: black;
+			padding: 1px 3px;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			margin: 4px 2px;
+			-webkit-transition-duration: 0.4s;
+			/* Safari */
+			transition-duration: 0.4s;
+			cursor: pointer;
+			border: 2px solid #6495ed;
+		}
+
+		input:hover {
+			background-color: #6495ed;
+			color: white;
+		}
+	</style>
+</head>
+
+<body>
+    <div>
+        <table>
+           <tr>
+               <td>
+               打开文件
+               <input type="file" id="b_file" >
+               <input type="button" id="b_openfile" value="打开gen文件" onclick="clickreadfile()"><!--onclick-->
+               <input type="button" id="b_showpic" value="显示文件图片" onclick="clickshowpic()"><!--onclick--> 
+               <input type="button" id="GOpoint" value="运行" onclick="clickpoint()">
+               <input type="button" id="showplogon" value="刷新多边形" onclick="drawarea()">
+               </td>
+           </tr>
+           <tr>
+               <td>
+                <canvas id="canvas1" width="400"height="400" style="border:1px solid #000000;">
+                    </canvas>
+                
+                        <canvas id="canvas2" width="400"height="400" style="border:1px solid #000000;">
+                            </canvas>
+                </td>
+           </tr>
+        </table>
+
+        <style>
+                table
+                {
+                    border: 1px solid #333338;
+                    width:100%;
+                    text-align: center; 
+                }
+                tr
+                {
+                    border: 1px solid #0906F1;
+                    text-align: center; 
+                }
+                td
+                {
+                    border: 1px solid #000000;
+                    text-align: center; 
+                }
+        </style>        
+    </div>
+    <div>
+        <textarea name="texterea1" id="texterea1" cols="50" rows="30" onpropertychange= "this.style.posHeight=this.scrollHeight "></textarea>
+        <textarea name="texterea2" id="texterea2" cols="50" rows="30" onpropertychange= "this.style.posHeight=this.scrollHeight "></textarea>
+        <textarea name="texterea3" id="texterea3" cols="50" rows="30" onpropertychange= "this.style.posHeight=this.scrollHeight "></textarea>
+    </div>
+
+</body>
+
+
+<script type="text/javascript">
+//多边形左转算法构建多边形
+/*plyBuild_2_arc中有22条线，17个点*/
+var map=new Array();//记录地图数据
+var txtstr="";//记录txt中所有内容
+var txtstr_A=new Array();
+var linenum=1;//记录有几条线
+var points=new Array();//记录点数据（所有的起点终点）
+var point_tt=new Array();//记录节点序列，在点数据中找对应的实际点的x，y
+var point_to_line=new Array();//节点弧段排序表
+var ptl2=new Array();//复制版-节点弧段表
+var line_to_point=new Array();//弧段-节点表
+var plgon_to_line=new Array();//记录多边形-线段号
+var linedirection=new Array();//记录线的方向是否走过
+//与面-线“表”生成有关的参数
+var plgonnum=0;//当前是第几个面
+var gonlinenum=0;//当前是第几条线
+var PDpoint=0;//每次的点
+var PDline=0;//记录开始的线号
+var starpoint=0;//记录起始点
+var areanum=0;//记录有几个面
+var pointnum=0;//记录有几个点
+//线-具体点表
+var linemaxpoint=0;//记录每条线最多有几个点
+var specificline=new Array();//线-具体点表
+var areapoint=new Array();//记录面-点“表”
+//画布canvas2的鼠标点击事件
+var oCanvas = document.getElementById("canvas2");
+var ocontext = oCanvas.getContext("2d");
+var areass=new Array();//记录多边形面积
+
+function clickreadfile()
+{//点击“读取文件”事件
+    var filename=document.getElementById("b_file").files[0];
+    readfile(filename,map);
+//    console.log(map);
+}
+
+function readfile(filename,str_A)
+{//读取文件
+    //记录一下每条线最多有几个点
+    var b_num=0;
+    var reader=new FileReader();
+    reader.readAsText(filename,"UTF-8");
+    reader.onload=function(f)
+    {
+        txtstr=txtstr+event.target.result;
+    }
+    txtstr_A=txtstr.split("\n");
+
+    for(var i=0;i<txtstr_A.length+2;i++)
+    {
+        str_A[i]=new Array();
+        for(j=0;j<2;j++)
+        {
+            str_A[i][j]=0;
+        }
+    }
+    for(var i=0;i<txtstr_A.length;i++)
+    {//将文件转成数字形式
+         if(isNaN(parseInt(txtstr_A[i])))
+        {//String(txtstr_A[i])==String(txtstr_A[3])
+            str_A[i][0]=999;//线结束
+            if(b_num>linemaxpoint)
+            {
+                linemaxpoint=b_num;
+            }
+            b_num=0;
+             continue;
+        }
+        str_A[i]=txtstr_A[i].split(",");
+        str_A[i][0]=parseFloat(str_A[i][0]);
+        str_A[i][1]=400-parseFloat(str_A[i][1]);
+        pointnum++;
+        b_num++;
+        if(isNaN(str_A[i][1]))
+        {//当有些整数数字判断不出，再一次检查一遍
+            str_A[i][0]=-1;//线开始
+            str_A[i][1]=linenum;//记录这是第几条线
+            linenum++;//记录有几条线
+            continue;
+        }
+         continue;
+    //结束初始化
+    }  
+    str_A[txtstr_A.length][0]=999;
+    str_A[txtstr_A.length+1][0]=999;
+}
+
+function clickshowpic()
+{//绘制图形
+        clickreadfile();
+        var c=document.getElementById("canvas1");
+        var ctx=c.getContext("2d");
+        ctx.beginPath();
+        for(var j=0;j<map.length-1;j++)
+        {   
+            if(map[j][0]==-1)
+            {
+                ctx.moveTo((map[j+1][0]),(map[j+1][1]));
+                j++;
+                continue;
+            }
+            if(map[j][0]==999)
+            {//有END时结束当前画图，开始下一条线
+                if(map[j+1][0]==999)
+                {//有两个END结束
+                    break;
+                }
+                continue;
+            }
+            //既不是起点也不是END
+            ctx.lineTo((map[j][0]),(map[j][1]));
+        }
+         ctx.strokeStyle="#000000";//黑色
+         ctx.stroke();
+         ctx.closepath;
+         console.log(map);
+}
+
+function clickpoint()
+{//点击事件——节点表，节点-弧段表
+    pointtable();
+    console.log(points);//输出所有的开始点和终止点
+    pointlinetable();
+    console.log(point_tt);//输出节点序列
+    console.log(point_to_line);//输出节点-弧段表
+    linepointtable();
+    console.log(line_to_point);//输出弧段-节点表
+    plgonline();
+    console.log(plgon_to_line);
+    linespecificpoint();
+    console.log(specificline);//线-具体点
+    arealinepoint();
+    console.log(areapoint);//面-具体点
+}
+
+function pointtable()
+{//生成节点表
+    var clinenum=0;//当前第几条线
+    var cpointnum=0;//当前第几个点
+    //初始化节点表
+    for(var i=0;i<linenum*2;i++)
+    {
+        points[i]=new Array();
+        for(var j=0;j<3;j++)
+        {
+             points[i][j]=999;//0=x,1=y,2=属于第几条线
+        }
+    }
+    //赋值节点表
+    for(var i=0;i<map.length;i++)
+    {
+        if(map[i][0]==-1)
+            {
+                //记录clinenum的起点
+                points[cpointnum][0]=map[i+1][0];
+                points[cpointnum][1]=map[i+1][1];
+                points[cpointnum][2]=clinenum;
+                cpointnum++;
+                continue;
+            }
+            if(map[i][0]==999)
+            {//有END时结束当前画图，开始下一条线
+
+                if(map[i+1][0]==999)
+                {//有两个END结束
+                    break;
+                }
+                //记录clinenum的终点
+                 points[cpointnum][0]=map[i-1][0];
+                points[cpointnum][1]=map[i-1][1];
+                points[cpointnum][2]=clinenum;
+                cpointnum++;
+                clinenum++;//下一条线
+                continue;
+            }
+            //既不是起点也不是END        
+    }
+}
+
+function pointlinetable()//999=无效
+{//生成节点-弧段顺序表
+    //初始化节点序列
+    point_tt[0]=0;//第0条线的起点
+    
+    for(var i=1;i<points.length;i++)
+    {//要去除重复的点，记录下不重复的点
+       for(var j=0;j<point_tt.length;j++)
+       {//对比节点-弧段中是否出现过相同的点，没有就赋值
+            if(points[i][0]==points[point_tt[j]][0]&&points[i][1]==points[point_tt[j]][1])
+            {//这个节点已经存在
+               break;//退出循环对比
+            }
+            if(points[i][0]==999&&points[i][1]==999&&points[i][2]==999)
+            {//这个节点没用过
+              break;
+            }
+            if(j==point_tt.length-1)
+            {
+                point_tt[point_tt.length]=i;
+            }
+       }
+    }
+
+   //初始化节点-弧段表，大小=节点数*弧段数
+   for(var i=0;i<point_tt.length;i++)
+   {//节点行
+       point_to_line[i]=new Array();
+       ptl2[i]=new Array();
+       for(var j=0;j<linenum;j++)
+       {//弧段列
+            point_to_line[i][j]=999;
+            ptl2[i][j]=999;
+       }
+   }
+
+//计算方位角
+   //将所有数据读一遍，依据弧段填写节点-弧段表
+   var pllinenum=0;//记录当前是第几条线
+   for(var i=0;i<map.length;i++)
+   {
+       if(map[i][0]==-1)
+           {
+               for(var k=0;k<point_tt.length;k++)
+               {
+                   if(map[i+1][0]==points[point_tt[k]][0]&&map[i+1][1]==points[point_tt[k]][1])
+                   {//当确定是同一起点后
+                        //计算方位角i+1和i+2
+                          point_to_line[k][pllinenum]=Azimuth_calculation(map[i+1][0],map[i+1][1],map[i+2][0],map[i+2][1]);
+                   }
+               }
+               continue;
+           }
+           if(map[i][0]==999)
+           {//有END时结束当前画图，开始下一条线             
+               if(map[i+1][0]==999)
+               {//有两个END结束
+                  //最后一条线的最后一个点
+                  //计算方位角i-1和i-2
+                  for(var k=0;k<point_tt.length;k++)
+                  {
+                      if(map[i-1][0]==points[point_tt[k]][0]&&map[i-1][1]==points[point_tt[k]][1])
+                      {//当确定是同一起点后
+                        //计算方位角i-1和i-2
+                          point_to_line[k][pllinenum]=Azimuth_calculation(map[i-1][0],map[i-1][1],map[i-2][0],map[i-2][1]);
+                      }
+                  }
+                   break;
+               }
+               //计算方位角i-1和i-2
+               for(var k=0;k<point_tt.length;k++)
+               {
+                   if(map[i-1][0]==points[point_tt[k]][0]&&map[i-1][1]==points[point_tt[k]][1])
+                   {//当确定是同一起点后
+                        //计算方位角i-1和i-2
+                          point_to_line[k][pllinenum]=Azimuth_calculation(map[i-1][0],map[i-1][1],map[i-2][0],map[i-2][1]);
+                   }
+               }
+               pllinenum++;
+               continue;
+           }
+           //既不是起点也不是END        
+   }
+//依据方位角从小到大排序
+//将节点弧段表排序并修改记录
+   for(var i=0;i<point_tt.length;i++)
+   {//修改每一行
+   //第1列=总有的连接线，第2列=第1个线的号
+      var plstr=new Array();//记录线的顺序，由角度从小到大，plstr.length=新的第1列
+      var plstrnum=0;
+      for(var j=0;j<linenum-1;j++)
+      {
+          if(point_to_line[i][j]!=999)
+          {//记录是第几条线
+               plstr[plstrnum]=j;
+               plstrnum++;
+          }
+      }
+      //将plstr排序,由小到大
+      for(var j=0;j<plstrnum;j++)
+      {
+          for(var k=0;k<plstrnum-1;k++)
+          {
+              if(point_to_line[i][plstr[k]]>point_to_line[i][plstr[k+1]])
+              {
+                  var a=plstr[k+1];
+                  plstr[k+1]=plstr[k];
+                  plstr[k]=a;
+              }
+          }
+      }
+      //在每行第一列记录有几条线,并记录
+      point_to_line[i][0]=plstrnum;
+      for(var z=1;z<pllinenum;z++)
+      {
+          if(z<plstrnum+1)
+          {
+             point_to_line[i][z]=plstr[z-1];
+          }
+          else
+          {
+            point_to_line[i][z]=999;
+          }
+      }
+   }
+
+//将结果复制给ptl2
+    for(var i=0;i<point_tt.length;i++)
+    {
+        for(j=0;j<pllinenum;j++)
+        {
+            ptl2[i][j]=point_to_line[i][j];
+        }
+    }
+//结果输出至texterea1
+    var txt1="点-线表：\r\n";
+    for(var i=0;i<point_tt.length;i++)
+    {
+        txt1=txt1+i+"点："
+        for(var j=1;j<pllinenum;j++)
+        {
+           if(point_to_line[i][j]==999)
+           {
+               break;
+           }
+           if(j==point_to_line[i][0])
+           {
+              txt1=txt1+point_to_line[i][j];
+           }
+           else
+           {
+              txt1=txt1+point_to_line[i][j]+"->"
+           }
+        }
+        txt1=txt1+"\r\n";
+    }
+    document.getElementById("texterea1").value=txt1;
+}
+
+function Azimuth_calculation(x1,y1,x2,y2)
+{//计算方位角0-360,以（x1,y1）为原点的角度
+    var angle=0;//记录方位角
+    var ax=x2-x1;
+    var ay=y2-y1;
+
+    if(x1<x2)
+    {
+       if(y1>y2)
+       {//第一象限
+          angle=360+Math.atan(ay/ax)*180/Math.PI;
+       }
+       if(y1<y2)
+       {//第四象限
+           angle=Math.atan(ay/ax)*180/Math.PI;
+       }
+    }
+    if(x1>x2)
+    {//第二和三象限
+        angle=180+Math.atan(ay/ax)*180/Math.PI;
+    }
+//特殊情况
+    if(x1==x2)
+    {
+        if(y1>y2)
+        {//y的负半轴
+            angle=270;
+        }
+        if(y1<y2)
+        {//y的正半轴
+            angle=90;
+        }
+    }
+    if(y1==y2)
+    {
+        if(x1>x2)
+        {//x的负半轴
+            angle=180;
+        }
+        if(x1<x2)
+        {//x的正半轴
+            angle=0;
+        }
+    }
+    //返回角度
+    return angle;
+}
+
+function linepointtable()
+{//生成弧段-节点表line_to_point
+    var lptlinenum=0;//记录当前是第几条线
+    //初始化
+    for(var i=0;i<linenum-1;i++)
+    {
+        line_to_point[i]=new Array();
+        for(var j=0;j<2;j++)
+        {
+            line_to_point[i][j]=0;//0=起点，1=终点
+        }
+    }
+    //赋值
+    for(var i=0;i<map.length;i++)
+    {
+        if(map[i][0]==-1)
+            {
+                //对比数值xy，得到！起点！
+                for(var k=0;k<point_tt.length;k++)
+                {
+                    if(map[i+1][0]==points[point_tt[k]][0]&&map[i+1][1]==points[point_tt[k]][1])
+                    {//当开始节点是其中某一点时，记录点的序列号
+                          line_to_point[lptlinenum][0]=k;
+                    }
+                }
+                continue;
+            }
+            if(map[i][0]==999)
+            {//有END时结束当前画图，开始下一条线    
+                if(map[i+1][0]==999)
+                {//有两个END结束
+                   //最后一条线的终点计算
+                      for(var k=0;k<point_tt.length;k++)
+                    {
+                         if(map[i-1][0]==points[point_tt[k]][0]&&map[i-1][1]==points[point_tt[k]][1])
+                         {//当开始节点是其中某一点时，记录点的序列号
+                             line_to_point[lptlinenum][1]=k;
+                         }
+                    }
+
+                    break;
+                }
+
+                //对比数值xy，得到！终点！
+                for(var k=0;k<point_tt.length;k++)
+                {
+                    if(map[i-1][0]==points[point_tt[k]][0]&&map[i-1][1]==points[point_tt[k]][1])
+                    {//当开始节点是其中某一点时，记录点的序列号
+                          line_to_point[lptlinenum][1]=k;
+                    }
+                }
+                lptlinenum++;
+                continue;
+            }
+            //既不是起点也不是END        
+    }
+//将线-点表输出至textarea2
+   var txt2="线-点表:\r\n"
+   for(var i=0;i<linenum-1;i++)
+   {
+       txt2=txt2+"第"+i+"线：["+line_to_point[i][0]+","+line_to_point[i][1]+"]\r\n"
+   }
+   document.getElementById("texterea2").value=txt2;
+ 
+}
+
+function plgonline()
+{//生成多边形-弧段表
+   //初始化表，大小线段数*线段数
+   for(var i=0;i<linenum;i++)
+   {
+       plgon_to_line[i]=new Array();
+       for(var j=0;j<linenum;j++)
+       {
+           plgon_to_line[i][j]=0.99;
+       }
+   }
+   //初始化一些参数
+   plgonnum=0;//当前是第几个面
+   gonlinenum=0;//当前是第几条线
+   PDpoint=0;//每次的点
+   PDline=point_to_line[0][1];//记录开始的线号
+   //生成表
+   PDstarpoint();
+//将面-线表输出至textarea3
+  var txt3="面-线表：\r\n";
+  for(var i=0;i<linenum;i++)
+  {
+      if(plgon_to_line[i][0]==0.99)
+      {
+          break;
+      }
+      txt3=txt3+"第"+i+"个面："
+      for(var j=1;j<linenum;j++)
+      {
+         if(plgon_to_line[i][j]==0.99)
+         {
+             break;
+         }
+         if(j==plgon_to_line[i][0])
+         {
+            txt3=txt3+plgon_to_line[i][j];
+         }
+         else
+         {
+            txt3=txt3+plgon_to_line[i][j]+"\t";
+         }
+      }
+      txt3=txt3+"\r\n";
+  }   
+  document.getElementById("texterea3").value=txt3;
+}
+
+
+function check()
+{//检查是否所有线段都遍历两次
+    var checknum=0;
+     for(var i=0;i<point_tt.length;i++)
+     {
+         for(var j=1;j<=ptl2[i][0];j++)
+         {
+             if(ptl2[i][j]==-1)
+             {
+                 checknum++;
+             }
+         }
+     }
+     if(checknum==linenum*2)
+     {
+         return 1;
+     }
+     else
+     {
+         return 0;
+     }
+}
+
+
+function PDstarpoint()
+{//从起始点开始-到回到起始点后的判断
+//总共有m个点，m=point_tt.length
+//公共有n条线，n=linenum
+//点-线“表”：point_to_line；大小：m*n————ptl2复制版的点-线“表”
+//线-点“表”：line_to_point；大小：n*2
+//面-线“表”：plgon_to_line；大小：n*n  
+// plgonnum;//当前是第几个面
+// gonlinenum;//当前是第几条线       
+var m=point_tt.length;
+var n=linenum;
+
+         for(var i=0;i<m;i++)
+         {//遍历点-线“表”
+             if(check()==1)
+             {
+                 return 1;//已经全部遍历结束，面-线“表”已经生成
+             }
+             for(var j=1;j<=point_to_line[i][0];j++)
+             {
+                 var checkline=point_to_line[i][0];//i点的连接线有checkline条
+                 var cl=0;
+                 //检测该点，所有的链接线是否都已经使用过
+                 for(var k=1;k<=point_to_line[i][0];k++)
+                 {
+                       if(ptl2[i][k]==-1)
+                       {
+                           cl++;//如果已经使用过
+                       }
+                 }
+                 if(cl==checkline)
+                 {
+                     break;//该点的线都已经使用，结束该点的for循环，进入下一个点
+                 }
+                 starpoint=i;
+                 PDpoint=i;
+                    //检查起始线是否是起点的连接线
+                     var checkcl=0;
+                     for(k=1;k<=point_to_line[i][0];k++)
+                     {
+                         if(ptl2[i][k]!=PDline)
+                         {
+                            checkcl++;
+                         }
+                     }
+                     if(checkcl==point_to_line[i][0])
+                     {
+                           for(k=1;k<=point_to_line[i][0];k++)
+                         {
+                             if(ptl2[i][k]!=-1)
+                             {
+                                 PDline=ptl2[i][k];
+                                 break;
+                             }
+                         }
+                     }
+                 
+                 PDcentercycle();
+                //如果没有全部遍历结束
+                plgonnum=plgonnum+1;
+                gonlinenum=0;
+                areanum++;
+             }
+
+         }
+         //对面-线“表”处理[i][0]=线数
+         for(var i=0;i<areanum;i++)
+         {
+             var aa=new Array();
+             for(var j=0;j<n;j++)
+             {
+                 if(plgon_to_line[i][j]!=0.99)
+                 {
+                     aa.push(plgon_to_line[i][j]);
+                 }
+             }
+             plgon_to_line[i][0]=aa.length;
+             for(var j=1;j<=aa.length;j++)
+             {
+                plgon_to_line[i][j]=aa[j-1];
+             }
+         }
+}
+
+function PDcentercycle()
+{//中间循环部分。PDstarpoint()中循环计算点-线-面
+     if(gonlinenum!=0)
+     {
+        if(PDpoint==starpoint)
+         {//当前点是起点=回到起点
+             return 1;//结束
+         }
+     }
+   var starend=0;//默认点是起点
+   //当没有回到起点时
+   //在面-线表中记录当前线的情况
+   plgon_to_line[plgonnum][gonlinenum]=PDline;
+   if(line_to_point[PDline][1]==PDpoint)
+   {//当点是终点时=方向相反
+      plgon_to_line[plgonnum][gonlinenum]=-PDline;
+      starend=1;//终点
+   }
+   //在ptl2中标记已经使用过的线
+   for(var i=1;i<=ptl2[PDpoint][0];i++)
+   {
+       if(ptl2[PDpoint][i]==PDline)
+       {
+           ptl2[PDpoint][i]=-1;
+       }
+   }
+
+
+   //计算下一次的点、线
+   var nextpoint=0;//下一个点
+   var nextline=0;//下一条线
+   if(starend==0)
+   {
+       nextpoint=line_to_point[PDline][1];
+   }
+   else
+   {
+       nextpoint=line_to_point[PDline][0];
+   }
+
+
+   for(var i=1;i<=point_to_line[nextpoint][0];i++)
+   {
+       if(point_to_line[nextpoint][i]==PDline)
+       {
+           if(i==point_to_line[nextpoint][0])
+           {//当线是点的最后一条线时
+               nextline=point_to_line[nextpoint][1];
+               break;
+           }
+           //当线不是点的最后一条线时
+           nextline=point_to_line[nextpoint][i+1];
+           break;
+       }
+   }
+
+   PDpoint=nextpoint;
+   //当前点是起点=回到起点
+   if(nextpoint==starpoint)
+    {   //当前点是起点=回到起点
+           return 1;//结束
+    }
+    PDline=nextline;
+   gonlinenum++;
+   PDcentercycle();
+}
+
+function linespecificpoint()
+{//将具体的点存入线“表”
+    //初始化
+    for(var i=0;i<linenum-1;i++)
+    {
+        specificline[i]=new Array;
+        for(var j=0;j<=linemaxpoint;j++)
+        {
+            specificline[i][j]=new Array();
+            for(var x=0;x<2;x++)
+            {
+                specificline[i][j][x]=0;
+            }
+        }
+    }
+    var k=0;//第k条线
+    var kp=0;//第kp个点
+    for(var i=0;i<map.length;i++)
+    {
+             if(map[i][0]==-1)
+            {
+                continue;
+            }
+            if(map[i][0]==999)
+            {//有END时结束当前画图，开始下一条线
+                if(map[i+1][0]==999)
+                {//有两个END结束
+                    break;
+                }
+                kp=0;    
+                k++;
+                continue;
+            }
+            //既不是起点也不是END  
+            specificline[k][kp][0]=map[i][0];
+            specificline[k][kp][1]=map[i][1];
+            kp++; 
+    }
+}
+
+function arealinepoint()
+{//将具体的点存入面表
+   //初始化
+   for(var i=0;i<areanum;i++)
+   {
+       areapoint[i]=new Array();
+       for(var j=0;j<pointnum;j++)
+       {
+           areapoint[i][j]=new Array();
+           for(var x=0;x<2;x++)
+           {
+              areapoint[i][j][x]=0;
+           }
+       }
+   }
+
+   var ppk=0;//第几个点
+   for(var i=0;i<areanum;i++)
+   {
+       ppk=0;
+       for(var j=1;j<=plgon_to_line[i][0];j++)
+       {
+           var k=Math.abs(plgon_to_line[i][j]);
+           if(plgon_to_line[i][j]!=Math.abs(plgon_to_line[i][j]))
+           {//反方向
+               for(var x=linemaxpoint;x>=0;x--)
+               {
+                   
+                       if(specificline[k][x][0]!=0)
+                       {
+                          areapoint[i][ppk][0]=specificline[k][x][0];
+                          areapoint[i][ppk][1]=specificline[k][x][1];
+                          ppk++;
+                          
+                       }
+                   
+               }
+               
+           }
+           else
+           {//正方向
+               for(var x=0;x<=linemaxpoint;x++)
+               {
+                   
+                       if(specificline[k][x][0]!=0)
+                       {
+                          areapoint[i][ppk][0]=specificline[k][x][0];
+                          areapoint[i][ppk][1]=specificline[k][x][1];
+                          ppk++;
+                          
+                       }
+                   
+               }
+           }
+
+       }
+   }
+   //处理面-点“表”[i][0][0]=总共有多少点
+   for(var i=0;i<areanum;i++)
+   {
+       var ppnum=0;//记录每个面由多少点组成
+       for(var j=0;j<pointnum;j++)
+       {//找每个面由多少点组成
+           if(areapoint[i][j][0]==0)
+           {
+               break;
+           }
+           else
+           {
+               ppnum++;
+           }
+       }
+       
+       for(var j=pointnum-2;j>=0;j--)
+       {
+              areapoint[i][j+1][0]=areapoint[i][j][0];
+              areapoint[i][j+1][1]=areapoint[i][j][1];
+           if(j==0)
+           {
+              areapoint[i][j][0]=ppnum;
+              areapoint[i][j][1]=0;
+           }
+       }
+   }
+//绘制多边形
+drawarea();
+}
+
+function drawarea()
+{//绘制多边形
+    var aa=document.getElementById("canvas2").getContext("2d");  
+    for(var i=0;i<areanum;i++)
+    {
+        aa.fillStyle=getColor();
+        ddraw(aa,i);
+    }
+}
+
+function ddraw(context,anum)
+{//绘制多边形的重复步骤
+        context.beginPath();  
+        context.moveTo(areapoint[anum][1][0],areapoint[anum][1][1]);  
+        for(var i=2;i<=areapoint[anum][0][0];i++)
+        {    
+            if(areapoint[anum][i][0]!=0)
+            {
+               context.lineTo(areapoint[anum][i][0],areapoint[anum][i][1]);  
+            }
+        }  
+        context.fill();  
+        context.closePath(); 
+}
+
+function getColor()
+{//随机得到不同的颜色
+ //定义字符串变量colorValue存放可以构成十六进制颜色值的值
+ var colorValue="0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f";
+ //以","为分隔符，将colorValue字符串分割为字符数组["0","1",...,"f"]
+ var colorArray = colorValue.split(",");
+ var color="#";//定义一个存放十六进制颜色值的字符串变量，先将#存放进去
+  //使用for循环语句生成剩余的六位十六进制值
+        for(var i=0;i<6;i++)
+        {
+        //colorArray[Math.floor(Math.random()*16)]随机取出
+        // 由16个元素组成的colorArray的某一个值，然后将其加在color中，
+        //字符串相加后，得出的仍是字符串
+        color+=colorArray[Math.floor(Math.random()*16)];
+        }
+   return color;
+}
+
+function rayCasting(p,pare)
+{//射线法判断点在面内
+//p是鼠标点击的点，pare是多边形编号
+    var px = p[0],
+        py = p[1],
+        flag = false
+
+    for(var i=1,l=areapoint[pare][0][0],j=l-1;i<l;j=i,i++) 
+    {
+      var sx = areapoint[pare][i][0];
+      var sy = areapoint[pare][i][1];
+      var tx = areapoint[pare][j][0];
+      var ty = areapoint[pare][j][1];
+
+      // 点与多边形顶点重合
+      if((sx === px && sy === py) || (tx === px && ty === py)) 
+      {
+        return 'on'
+      }
+      // 判断线段两端点是否在射线两侧
+      if((sy < py && ty >= py) || (sy >= py && ty < py)) 
+      {
+        // 线段上与射线 Y 坐标相同的点的 X 坐标
+        var x = sx + (py - sy) * (tx - sx) / (ty - sy);
+        // 点在多边形的边上
+        if(x === px)
+        {
+          return 'on'
+        }
+        // 射线穿过多边形的边界
+        if(x > px)
+        {
+          flag = !flag
+        }
+      }
+    }
+    // 射线穿过多边形边界的次数为奇数时点在多边形内
+    return flag ? 'in' : 'out'
+}
+
+//画布的鼠标点击事件
+oCanvas.onmousedown=function (ev) 
+{
+        //每次 画之前。应该开启新的路径
+        ocontext.beginPath();
+        //先确认颜色
+        ocontext.fillStyle="#FF0000";
+        //确认线条宽度
+//        ocontext.lineWidth=4;
+        //鼠标按下的位置
+        var oid=[ev.offsetX,ev.offsetY];
+        alert(oid);
+        areasum();//计算多边形面积
+        var ss=new Array();
+        var minss=0;//记录最小的面积
+        var minnum=0;//记录面积序号
+        for(var i=0;i<areanum;i++)
+        {
+             if(areapoint[i][0][0]==0)
+             {//屏蔽面积最大的面
+                 continue;
+             }
+             if(rayCasting(oid,i)=='in')
+             {
+                 if(minss==0)
+                 {
+                     minss=areass[i];
+                     minnum=i;
+                     ss.push(areass[i]);
+                     continue;
+                 }
+                 else if(minss>areass[i])
+                 {
+                     minss=areass[i];
+                     minnum=i;
+                     ss.push(areass[i]);
+                     continue;
+                 }
+                 
+             }
+        }
+            alert(minnum);
+            ddraw(ocontext,minnum);
+
+}
+
+function areasum()
+{//计算每个多边形的面积，并去除面积最大的那个
+    //初始化
+    for(var i=0;i<areanum;i++)
+    {
+        areass[i]=0;
+    }
+    var maxss=0;
+    var maxnum=0;
+    for(var i=0;i<areanum;i++)
+    {  
+        for(var j=1;j<areapoint[i][j][0]-1;j++)
+        {
+           areass[i]+=areapoint[i][j][0]*areapoint[i][j+1][1]-areapoint[i][j+1][0]*areapoint[i][j][1];
+        }
+        areass[i]=Math.abs(areass[i]);
+        if(areass[i]>maxss)
+        {
+            maxss=areass[i];
+            maxnum=i;
+        }
+    }
+    areapoint[maxnum][0][0]=0;
+}
+
+</script>
+</html>

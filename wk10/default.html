@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<head>
+	<title>符号填充面</title>
+
+</head>
+
+<body>
+	<table>
+		<tr>
+			<td>
+				输入数据文件
+				<input type="file" id="filemap" multiple="multiple">
+				<!--multiple="multiple"-->
+				<input type="button" id="read_map" value="读取文件" onclick="clickreadfile()">
+				<input type="button" id="showmap" value="显示矢量图" onclick="showmapline()">
+				<input type="button" id="showsymbol" value="符号填充面" onclick="TCFH()">
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<canvas id="canvas" width="800" height="600" style="border:1px solid #000000;">
+				</canvas>
+			</td>
+		</tr>
+	</table>
+	<style>
+		table {
+			border: 0px solid #333338;
+			width: 100%;
+			text-align: center;
+		}
+
+		tr {
+			border: 1px solid #0906F1;
+			text-align: center;
+		}
+
+		td {
+			border: 1px solid #000000;
+			text-align: center;
+		}
+
+		canvas {
+			border: 0px solid #000000;
+		}
+
+		textarea {
+			width: 99%;
+			height: 99%;
+			border: 1px dashed black;
+			outline: none;
+		}
+
+		input {
+			background-color: white;
+			border: none;
+			color: black;
+			padding: 1px 3px;
+			text-align: center;
+			text-decoration: none;
+			display: inline-block;
+			margin: 4px 2px;
+			-webkit-transition-duration: 0.4s;
+			/* Safari */
+			transition-duration: 0.4s;
+			cursor: pointer;
+			border: 2px solid #6495ed;
+		}
+
+		input:hover {
+			background-color: #6495ed;
+			color: white;
+		}
+	</style>
+</body>
+<script type="text/javascript">
+	var map1 = new Array();//记录地图数据1budling
+	var map2 = new Array();//记录地图数据2g
+	var showmap1 = new Array();//记录map1的屏幕坐标
+	var showmap2 = new Array();//记录map2的屏幕坐标
+	var txtstr1 = "";//记录map1中所有内容
+	var txtstr2 = "";//记录map2中的所有内容
+	var txtstr_A = new Array();
+	var txtstr_B = new Array();
+	var minx = 0;
+	var miny = 0;
+	var map2S = new Array();//map1的线状符号的坐标
+
+
+	//读取面数据+符号数据
+	function clickreadfile() {
+		readfile();
+	}
+
+	function readfile() {//读取文件
+		var filename1 = document.getElementById("filemap").files[0];
+		var filename2 = document.getElementById("filemap").files[1];
+		//读取map1
+		var reader1 = new FileReader();
+		reader1.readAsText(filename1, "UTF-8");
+		reader1.onload = function (f) {
+			txtstr1 = txtstr1 + event.target.result;
+		}
+		txtstr_A = txtstr1.split("\n");
+		//读取map2    
+		var reader2 = new FileReader();
+		reader2.readAsText(filename2, "UTF-8");
+		reader2.onload = function (f) {
+			txtstr2 = txtstr2 + event.target.result;
+		}
+		txtstr_B = txtstr2.split("\n");
+		//保存map1数据
+		for (var i = 0; i < txtstr_A.length; i++) {
+			map1[i] = new Array();
+			for (j = 0; j < 2; j++) {
+				map1[i][j] = 0;
+			}
+		}
+		for (var i = 0; i < txtstr_A.length; i++) {//将文件转成数字形式
+			if (isNaN(parseInt(txtstr_A[i]))) {//String(txtstr_A[i])==String(txtstr_A[3])
+				map1[i][0] = 999;//线结束
+				continue;
+			}
+			map1[i] = txtstr_A[i].split(",");
+			map1[i][0] = parseFloat(map1[i][0]);
+			map1[i][1] = parseFloat(map1[i][1]);
+			if (isNaN(map1[i][1])) {//当有些整数数字判断不出，再一次检查一遍
+				map1[i][0] = -1;//线开始
+				continue;
+			}
+			continue;
+			//结束初始化
+		}
+		//保存map2数据
+		for (var i = 0; i < txtstr_B.length; i++) {
+			map2[i] = new Array();
+			for (j = 0; j < 2; j++) {
+				map2[i][j] = 0;
+			}
+		}
+		for (var i = 0; i < txtstr_B.length; i++) {//将文件转成数字形式
+			if (isNaN(parseInt(txtstr_B[i]))) {//String(txtstr_A[i])==String(txtstr_A[3])
+				map2[i][0] = 999;//线结束
+				continue;
+			}
+			map2[i] = txtstr_B[i].split(",");
+			map2[i][0] = parseFloat(map2[i][0]);
+			map2[i][1] = parseFloat(map2[i][1]);
+			if (isNaN(map2[i][1])) {//当有些整数数字判断不出，再一次检查一遍
+				map2[i][0] = -1;//线开始
+				continue;
+			}
+			continue;
+			//结束初始化
+		}
+	}
+
+	function showmapline() {//绘制多边形的边——线，绘制屏幕坐标系
+		clickreadfile();
+		//将实际坐标系转屏幕坐标系
+		PMConversion();
+		console.log(showmap1);
+		console.log(showmap2);
+		//绘制map2         
+		var c2 = document.getElementById("canvas");
+		var ctx2 = c2.getContext("2d");
+		ctx2.beginPath();
+		for (var j = 0; j < map2.length - 1; j++) {
+			if (map2[j][0] == -1) {
+				ctx2.moveTo(showmap2[j + 1][0], showmap2[j + 1][1]);
+				j++;
+				continue;
+			}
+			if (map2[j][0] == 999) {//有END时结束当前画图，开始下一条线
+				if (map2[j + 1][0] == 999) {//有两个END结束
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END
+			ctx2.lineTo(showmap2[j][0], showmap2[j][1]);
+		}
+		ctx2.strokeStyle = "#22F806";//绿色
+		ctx2.stroke();
+		ctx2.closepath;
+		//绘制map1    
+		var c = document.getElementById("canvas");
+		var ctx = c.getContext("2d");
+		ctx.beginPath();
+		for (var j = 0; j < map1.length - 1; j++) {
+			if (map1[j][0] == -1) {
+				ctx.moveTo(showmap1[j + 1][0], showmap1[j + 1][1]);
+				j++;
+				continue;
+			}
+			if (map1[j][0] == 999) {//有END时结束当前画图，开始下一条线
+				if (map1[j + 1][0] == 999) {//有两个END结束
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END
+			ctx.lineTo(showmap1[j][0], showmap1[j][1]);
+		}
+		ctx.strokeStyle = "#000000";//黑色
+		ctx.stroke();
+		ctx.closepath;
+	}
+
+	function PMConversion() {//将实际的坐标系转为屏幕坐标系
+		var map1_minx = map1[1][0];
+		var map1_miny = map1[1][1];
+		var map2_minx = map2[1][0];
+		var map2_miny = map2[1][1];
+		var map1num = 0;//记录每个区域包含多少个点
+		var map2num = 0;
+		//map1
+		for (var i = 0; i < map1.length; i++) {
+			showmap1[i] = new Array();
+			for (var j = 0; j < 2; j++) {
+				showmap1[i][j] = 0;
+			}
+		}
+		for (var i = 0; i < map1.length - 1; i++) {
+			if (map1[i][0] == -1) {
+				map1num = 0;
+				continue;
+			}
+			if (map1[i][0] == 999) {//有END时结束当前画图，开始下一条线
+				map1[i - map1num - 1][1] = map1num;
+				if (map1[i + 1][0] == 999) {//有两个END结束
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END
+			map1num++;
+			if (map1_minx > map1[i][0]) {
+				map1_minx = map1[i][0];
+			}
+			if (map1_miny > map1[i][1]) {
+				map1_miny = map1[i][1];
+			}
+		}
+		//map2
+		for (var i = 0; i < map2.length; i++) {
+			showmap2[i] = new Array();
+			for (var j = 0; j < 2; j++) {
+				showmap2[i][j] = 0;
+			}
+		}
+		for (var i = 0; i < map2.length - 1; i++) {
+			if (map2[i][0] == -1) {
+				map2num = 0;
+				continue;
+			}
+			if (map2[i][0] == 999) {//有END时结束当前画图，开始下一条线
+				map2[i - map2num - 1][1] = map2num;
+				if (map2[i + 1][0] == 999) {//有两个END结束
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END
+			map2num++;
+			if (map2_minx > map2[i][0]) {
+				map2_minx = map2[i][0];
+			}
+			if (map2_miny > map2[i][1]) {
+				map2_miny = map2[i][1];
+			}
+		}
+		//判断map1与map2中的坐标值
+		if (map1_minx < map2_minx) {
+			minx = map1_minx;
+		}
+		else {
+			minx = map2_minx;
+		}
+		if (map1_miny < map2_miny) {
+			miny = map1_miny;
+		}
+		else {
+			miny = map2_miny;
+		}
+
+		//建立绘制坐标系
+		//map1
+		for (var i = 0; i < map1.length - 1; i++) {
+			if (map1[i][0] == -1) {
+				showmap1[i][0] = map1[i][0];
+				showmap1[i][1] = map1[i][1];
+				continue;
+			}
+			if (map1[i][0] == 999) {//有END时结束当前画图，开始下一条线
+				showmap1[i][0] = map1[i][0];
+				showmap1[i][1] = map1[i][1];
+				if (map1[i + 1][0] == 999) {//有两个END结束
+					showmap1[i + 1][0] = map1[i + 1][0];
+					showmap1[i + 1][1] = map1[i + 1][1];
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END
+			showmap1[i][0] = ((map1[i][0] - minx)) * 2 + 200;
+			showmap1[i][1] = (200 - (map1[i][1] - miny)) * 2;
+		}
+		//map2
+		for (var i = 0; i < map2.length - 1; i++) {
+			if (map2[i][0] == -1) {
+				showmap2[i][0] = map2[i][0];
+				showmap2[i][1] = map2[i][1];
+				continue;
+			}
+			if (map2[i][0] == 999) {//有END时结束当前画图，开始下一条线
+				showmap2[i][0] = map2[i][0];
+				showmap2[i][1] = map2[i][1];
+				if (map2[i + 1][0] == 999) {//有两个END结束
+					showmap2[i + 1][0] = map2[i + 1][0];
+					showmap2[i + 1][1] = map2[i + 1][1];
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END
+			showmap2[i][0] = ((map2[i][0] - minx)) * 2 + 200;
+			showmap2[i][1] = (200 - (map2[i][1] - miny)) * 2;
+		}
+	}
+
+	function TCFH() {//符号填充面的点击事件
+		//初始化map1的符号
+		for (var i = 0; i < 12; i++) {
+			map2S[i] = new Array();
+			for (var j = 0; j < 3; j++) {
+				map2S[i][j] = 0;
+
+			}
+		}
+		//制定map2符号，[0]=x,[1]=y,[2]=奇数=抬笔，[2]=偶数=落笔
+		map2S[0][0] = 0; map2S[0][1] = 0; map2S[0][2] = 1;//起点,抬笔1
+		map2S[1][0] = 0; map2S[1][1] = 1; map2S[1][2] = 2;//终点，落笔
+		map2S[2][0] = 0; map2S[2][1] = 1; map2S[2][2] = 1;//起点,抬笔2
+		map2S[3][0] = 3; map2S[3][1] = 1; map2S[3][2] = 2;//终点，落笔
+		map2S[4][0] = 3; map2S[4][1] = 1; map2S[4][2] = 1;//起点,抬笔3
+		map2S[5][0] = 3; map2S[5][1] = 0; map2S[5][2] = 2;//终点，落笔
+		map2S[6][0] = 1; map2S[6][1] = 1; map2S[6][2] = 1;//起点,抬笔4
+		map2S[7][0] = 1; map2S[7][1] = 2; map2S[7][2] = 2;//终点，落笔
+		map2S[8][0] = 2; map2S[8][1] = 1; map2S[8][2] = 1;//起点,抬笔5
+		map2S[9][0] = 2; map2S[9][1] = 2; map2S[9][2] = 2;//终点，落笔
+		map2S[10][0] = 1; map2S[10][1] = 2; map2S[10][2] = 1;//起点,抬笔6
+		map2S[11][0] = 2; map2S[11][1] = 2; map2S[11][2] = 2;//终点，落笔
+		//找到map2中有几个区域，并分割         
+		for (var i = 0; i < map2.length - 1; i++) {
+			if (map2[i][0] == -1) {
+				//一个区域一个区域
+				Calculatesymbol(showmap2, map2S, i + 1, map2[i][1], 5, "#22F806");
+				continue;
+			}
+			if (map2[i][0] == 999) {//有END时结束当前画图，开始下一条线
+				if (map2[i + 1][0] == 999) {//有两个END结束
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END        
+		}
+		//找到map1中的有几个区域，并分割
+		for (var i = 0; i < map1.length - 1; i++) {
+			if (map1[i][0] == -1) {
+				//一个区域一个区域
+				trysymbol(showmap1, i + 1, map1[i][1], 6, "#000000");
+				continue;
+			}
+			if (map1[i][0] == 999) {//有END时结束当前画图，开始下一条线
+				if (map1[i + 1][0] == 999) {//有两个END结束
+					break;
+				}
+				continue;
+			}
+			//既不是起点也不是END        
+		}
+
+	}
+
+	function Calculatesymbol(smap, ssymbol, starnum, areanum, DIS, color) {//绘制符号2的过程map2,DIS需要调一下啊！！
+		//smap=原始边界数据,ssymbol=符号数据,starnum=开始的编号
+		//areanum=该区域共有多少个点,earea=存储一个区域的边界点
+		var earea = new Array();
+		//计算区域内中心
+		var xcenter = 0;
+		var ycenter = 0;
+		var Ymin = 0; var Ymax = 0;
+		var sPS = new Array();//记录符号的x和y的范围[0]=Xmin;[1]=Xmax;[2]=Ymin;[3]=Ymax
+
+
+		//初始化存储边界点X,Y
+		for (var i = 0; i < areanum; i++) {
+			earea[i] = new Array();
+			for (var j = 0; j < 2; j++) {
+				earea[i][j] = smap[starnum + i][j];
+				if (j == 0) {//x
+					xcenter += smap[starnum + i][j];
+				}
+				if (j == 1) {//y
+					ycenter += smap[starnum + i][j];
+				}
+			}
+		}
+		xcenter = xcenter / areanum;
+		ycenter = ycenter / areanum;
+		//计算缩小PS/2的坐标Ax,Ay
+		for (var i = 0; i < areanum; i++) {
+			if (earea[i][0] > xcenter) {//在y轴右侧
+				earea[i][0] = earea[i][0] - DIS / 2;
+			}
+			else {//在y轴左侧
+				earea[i][0] = earea[i][0] + DIS / 2;
+			}
+			if (earea[i][1] > ycenter) {//在x轴下侧
+				earea[i][1] = earea[i][1] - DIS / 2;
+			}
+			else {//在x轴上侧
+				earea[i][1] = earea[i][1] + DIS / 2;
+			}
+		}
+
+		//得到y的范围
+		for (var i = 0; i < areanum; i++) {
+			if (earea[i][1] < earea[Ymin][1]) {//y比最小值小
+				Ymin = i;
+			}
+			if (earea[i][1] > earea[Ymax][1]) {//y比最大值大
+				Ymax = i;
+			}
+		}
+		Ymin = earea[Ymin][1] - DIS;
+		Ymax = earea[Ymax][1] + DIS;//获得实际的Y值范围
+		//计算得到Dx,Dy
+		var NA = 0;
+		var Dx = new Array();//x坐标
+		var Dy = new Array();//y坐标
+		var Dd = new Array();//起点-终点
+
+
+		//从y=d；
+		for (var i = Ymin; i < Ymax; i = i + DIS) {//每行计算交点,y=i
+			var countnum = 0;
+			for (var k = 1; k < areanum; k++) {//点i-1，点i
+				if (earea[k][0] > earea[k - 1][0]) {
+					var xsmin = earea[k - 1][0];
+					var xsmax = earea[k][0];
+				}
+				else {
+					var xsmin = earea[k][0];
+					var xsmax = earea[k - 1][0];
+				}
+				if (earea[k][1] > earea[k - 1][1]) {
+					var ysmin = earea[k - 1][1];
+					var ysmax = earea[k][1];
+				}
+				else {
+					var ysmin = earea[k][1];
+					var ysmax = earea[k - 1][1];
+				}
+				var AK = (earea[k][1] - earea[k - 1][1]) / (earea[k][0] - earea[k - 1][0]);
+				var AC = earea[k - 1][1] - AK * earea[k - 1][0];
+				var AX = (i - AC) / AK;
+				if (earea[k][0] == earea[k - 1][0]) {
+					AX = earea[k][0];
+				}
+				if (i > ysmax || i < ysmin) {//y不在范围内
+					continue;
+				}
+				if (AX > xsmax || AX < xsmin) {//x不在范围内
+					continue;
+				}
+				Dx[NA] = AX; Dy[NA] = i; Dd[NA] = countnum;
+				NA++;
+				countnum++;
+			}
+			//对相同y值的x，从小到大排序
+			for (var pi = 0; pi < countnum; pi++) {
+				for (var pd = (NA - countnum + 1); pd < NA; pd++) {
+					if (Dx[pd] < Dx[pd - 1]) {
+						var p = Dx[pd];
+						Dx[pd] = Dx[pd - 1];
+						Dx[pd - 1] = p;
+					}
+				}
+			}
+
+		}
+
+		//另一个循环:将Dx和Dy按Dy从大到小排列
+		//第4个循环：绘制
+		var c = document.getElementById("canvas");
+		var ctx = c.getContext("2d");
+		ctx.beginPath();
+
+		//自制绘制符号
+		for (var i = 0; i < Dx.length - 1; i++) {
+			if (Dd[i] % 2 == 0) {//i是起点，i+1是终点
+				for (var j = Dx[i]; j < Dx[i + 1]; j = j + DIS) {
+					for (var s = 0; s < ssymbol.length; s++) {
+						var sx = j + ssymbol[s][0];
+						var sy = Dy[i] + ssymbol[s][1];
+						if (ssymbol[s][2] % 2 == 0) {
+							ctx.lineTo(sx, sy);
+						}
+						else {
+							ctx.moveTo(sx, sy);
+						}
+					}
+				}
+			}
+
+		}
+
+		ctx.strokeStyle = color;//黑色
+		ctx.stroke();
+		ctx.closepath;
+	}
+
+
+	function trysymbol(smap, starnum, areanum, DIS, color) {//绘制map1的斜线条,完成
+		var earea = new Array();
+		//计算区域内中心
+		var PSx = 0; var PSy = 0;//记录区域x和y方向上的尺寸
+		var Xmin = 0; var Xmax = 0;//记录区域最小的x和最大的x的位置
+		var staxy = 0;//记录开始计算斜线的点
+		var endxy = 0;//记录结束计算斜线的点
+		var stadd = 0;//记录b的区间[0~stadd]
+
+		//初始化存储边界点X,Y
+		for (var i = 0; i < areanum; i++) {
+			earea[i] = new Array();
+			for (var j = 0; j < 2; j++) {
+				earea[i][j] = smap[starnum + i][j];
+			}
+		}
+		//计算找起始点和终点
+		for (var i = 0; i < areanum; i++) {
+			if (earea[i][0] < earea[Xmin][0]) {//比最小的小
+				Xmin = i;
+			}
+			if (earea[i][0] > earea[Xmax][0]) {
+				Xmax = i;
+			}
+		}
+		PSx = earea[Xmax][0] - earea[Xmin][0];
+		//固定从x方向开始
+		staxy = Xmin;
+		stadd = PSx;
+		endxy = Xmax;
+		//计算得到Dx,Dy
+		var NA = 0;
+		var Dx = new Array();
+		var Dy = new Array();
+		var Dd = new Array();//判断起笔落笔
+
+
+		//求y=-x+b与多边形的交点
+		var ss = earea[staxy][0] + earea[staxy][1];
+		var countnum = 0;
+		for (var i = 0; i < ss + 600; i = i + DIS) {//b=i,[earea[staxy][0]+earea[staxy][1],earea[endxy][0]+earea[endxy][1]]
+			countnum = 0;
+			for (var k = 1; k < areanum; k++) {
+				if (earea[k][0] > earea[k - 1][0]) {
+					var xsmin = earea[k - 1][0];
+					var xsmax = earea[k][0];
+				}
+				else {
+					var xsmin = earea[k][0];
+					var xsmax = earea[k - 1][0];
+				}
+				if (earea[k][1] > earea[k - 1][1]) {
+					var ysmin = earea[k - 1][1];
+					var ysmax = earea[k][1];
+				}
+				else {
+					var ysmin = earea[k][1];
+					var ysmax = earea[k - 1][1];
+				}
+				var Ak = (earea[k][1] - earea[k - 1][1]) / (earea[k][0] - earea[k - 1][0]);
+				var AC = earea[k - 1][1] - Ak * earea[k - 1][0];
+
+				if (Ak == -1) {//当区域内的线与斜线斜率一样时
+					Dx[NA] = i; Dy[NA] = i; Dd[NA] = countnum;
+					NA++;
+					countnum++;
+					continue;
+				}
+				var AX = (i - AC) / (Ak + 1);
+				if (earea[k][0] == earea[k - 1][0]) {//x值相同
+					AX = earea[k][0];
+				}
+				var AYY = -AX + i;
+				if (AX <= xsmax && AX >= xsmin && AYY <= ysmax && AYY >= ysmin) {
+					Dx[NA] = AX; Dy[NA] = -AX + i; Dd[NA] = countnum;
+					NA++;
+					countnum++;
+				}
+			}
+
+			if (countnum > 2) {
+				for (var k = NA; k > NA - countnum; k--) {
+					if (Dx[k] < Dx[k - 1]) {//按x从小到大
+						var xi = Dx[k]; var yi = Dy[k];
+						Dx[k] = Dx[k - 1]; Dy[k] = Dy[k - 1];
+						Dx[k - 1] = xi; Dy[k - 1] = yi;
+					}
+				}
+			}
+		}
+
+
+		//第4个循环：绘制
+		var c = document.getElementById("canvas");
+		var ctx = c.getContext("2d");
+		ctx.beginPath();
+
+
+		//自制绘制符号
+		var dj = 0;
+		for (var i = 0; i < Dx.length; i = i + 1) {
+			if (Dd[i] % 2 == 0) {
+				ctx.moveTo(Dx[i], Dy[i]);
+			}
+			else {
+				ctx.lineTo(Dx[i], Dy[i]);
+			}
+		}
+
+		ctx.strokeStyle = color;//黑色
+		ctx.stroke();
+		ctx.closepath;
+	}
+</script>
+
+</html>
